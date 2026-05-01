@@ -1,1 +1,135 @@
-# SADIYA-PRO
+# SADIYA AI OS Layer
+
+**Your AI OS Companion. Ready to assist, automate and execute.**
+
+A futuristic desktop AI application with a 2050-style UI, built with Electron + React + TypeScript.
+
+![SADIYA Screenshot](resources/icon.png)
+
+## Features
+
+- **Futuristic 2050 UI** - Dark glassmorphic theme with cyan/purple/blue color scheme
+- **SADIYA AI Avatar** - High-quality AI assistant interface with capability ring display
+- **System Overview** - Real-time CPU, RAM, Disk, GPU monitoring with circular gauges
+- **Active Agents** - Planner, Research, Browser, Memory, and System agents
+- **Console** - Interactive chat interface with SADIYA AI
+- **Task Timeline** - Real-time task tracking and completion status
+- **Memory Snapshot** - Contextual memory management
+- **Voice Control** - Voice activation with waveform visualization
+- **Command Bar** - Quick commands: Open Terminal, System Info, Search Files, Screenshot, New Task
+- **Cross-Platform** - Windows (.exe), macOS (.dmg), Linux (AppImage)
+
+## Tech Stack
+
+- **Framework:** Electron + React + Vite
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS v4
+- **Animations:** Framer Motion + GSAP
+- **3D Engine:** Three.js / React Three Fiber
+- **AI Core:** Google Gemini API
+- **State Management:** Zustand
+
+## Prerequisites
+
+- **Node.js** v18+ (recommended v22)
+- **npm** v9+
+
+## Installation & Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/your-username/SADIYA-AI.git
+cd SADIYA-AI
+
+# Install dependencies
+npm install --legacy-peer-deps
+
+# Start in development mode
+npm run dev
+```
+
+## Building the Desktop Executable (.exe)
+
+### Windows (.exe installer)
+
+```bash
+# Build for Windows
+npm run build:win
+```
+
+This will create:
+- `dist/sadiya-ai-1.0.0-setup.exe` - NSIS installer with desktop shortcut
+
+### macOS (.dmg)
+
+```bash
+npm run build:mac
+```
+
+### Linux (AppImage / .deb / .snap)
+
+```bash
+npm run build:linux
+```
+
+## Build Output
+
+The built executable will be in the `dist/` directory:
+
+| Platform | Output |
+|----------|--------|
+| Windows  | `dist/sadiya-ai-1.0.0-setup.exe` |
+| macOS    | `dist/sadiya-ai-1.0.0.dmg` |
+| Linux    | `dist/sadiya-ai-1.0.0.AppImage` |
+
+## Project Structure
+
+```
+SADIYA-AI/
+├── src/
+│   ├── main/              # Electron main process
+│   │   ├── index.ts       # Main entry, window creation, IPC handlers
+│   │   ├── logic/         # File ops, system info, terminal, etc.
+│   │   ├── services/      # AI services (coder, research, RAG)
+│   │   ├── security/      # Vault and lock system
+│   │   ├── handlers/      # Screen capture, keyboard control
+│   │   ├── auto/          # Widget maker, website builder
+│   │   └── workflow/      # Workflow manager
+│   ├── preload/           # Electron preload scripts
+│   └── renderer/          # React frontend
+│       └── src/
+│           ├── UI/        # SadiyaDashboard.tsx (main UI)
+│           ├── components/ # Titlebar, overlays, etc.
+│           ├── services/   # System info, AI brain
+│           ├── assets/     # CSS, SADIYA avatar image
+│           └── ...
+├── resources/             # App icon
+├── build/                 # Build resources
+├── electron-builder.yml   # Build configuration
+├── electron.vite.config.ts
+├── package.json
+└── tsconfig.json
+```
+
+## Configuration
+
+### API Keys (Optional)
+
+The app supports Gemini AI integration. Configure your API key in Settings:
+
+1. Open the app
+2. Get a [Gemini API Key](https://aistudio.google.com/app/apikey)
+3. Enter it in the Settings panel
+
+### Keyboard Shortcuts
+
+- `Ctrl+Shift+I` - Toggle overlay mode
+- Standard window controls (minimize, maximize, close)
+
+## License
+
+Dual licensed under MIT and Apache-2.0.
+
+## Author
+
+Built by SADIYA Team
