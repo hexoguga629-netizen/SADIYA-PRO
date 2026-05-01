@@ -1,9 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import SadiyaDashboard from './UI/SadiyaDashboard'
+import SettingsPanel from './UI/SettingsPanel'
 import TitleBar from './components/Titlebar'
 
 const App = () => {
   const [isOverlay, setIsOverlay] = useState(false)
+  const [currentView, setCurrentView] = useState<'dashboard' | 'settings'>('dashboard')
 
   useEffect(() => {
     const electronAPI = window.electron?.ipcRenderer
@@ -28,7 +30,11 @@ const App = () => {
   return (
     <div className="h-screen w-full bg-[#030912] flex flex-col overflow-hidden">
       <TitleBar />
-      <SadiyaDashboard />
+      {currentView === 'settings' ? (
+        <SettingsPanel onBack={() => setCurrentView('dashboard')} />
+      ) : (
+        <SadiyaDashboard onOpenSettings={() => setCurrentView('settings')} />
+      )}
     </div>
   )
 }

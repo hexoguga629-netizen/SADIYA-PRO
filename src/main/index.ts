@@ -49,6 +49,7 @@ import registerScreenPeeler from './handlers/ScreenPeeler-handler'
 import registerPhantomKeyboard from './handlers/PhantomControl-handler'
 import registerSecurityVault from './security/Security'
 import registerLockSystem from './security/lock-system'
+import registerNotion from './services/notion-handler'
 import { autoUpdater } from 'electron-updater'
 
 app.commandLine.appendSwitch('use-fake-ui-for-media-stream')
@@ -286,16 +287,17 @@ app.whenReady().then(() => {
   })
 
   registerLockSystem()
-  registerSecurityVault()
+  registerSecurityVault(ipcMain)
   registerPhantomKeyboard()
   registerScreenPeeler()
-  registerDropZoneControl(ipcMain)
+  registerDropZoneControl()
   registerWorkflowManager()
   registerWebsiteBuilder()
   registerWidgetMaker()
   registerDeepResearch({ ipcMain })
   registerOracle({ ipcMain })
   registerWormhole({ ipcMain })
+  registerNotion({ ipcMain })
   registerPermanentMemory({ ipcMain, app })
   registerTelekinesis({ ipcMain })
   registerIrisCoder({ ipcMain, app })
@@ -322,6 +324,10 @@ app.whenReady().then(() => {
   ipcMain.handle('get-screen-source', async () => {
     const sources = await desktopCapturer.getSources({ types: ['screen'] })
     return sources[0]?.id
+  })
+
+  ipcMain.handle('open-external-link', async (_e, { url }) => {
+    shell.openExternal(url)
   })
 
   createWindow()
