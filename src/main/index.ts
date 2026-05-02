@@ -11,6 +11,7 @@ import {
   dialog
 } from 'electron'
 import { loadSecureVault, saveSecureVault, withVaultLock, vaultFileExists } from './security/vault'
+import { GoogleGenAI } from '@google/genai'
 import path, { join } from 'path'
 import fs from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -244,6 +245,68 @@ app.whenReady().then(() => {
 
   ipcMain.handle('check-keys-exist', () => {
     return vaultFileExists()
+  })
+
+  const chatDir = path.resolve(app.getPath('userData'), 'Chat')
+  const chatFile = path.join(chatDir, 'iris_memory.json')
+  let chatLock: Promise<unknown> = Promise.resolve()
+  const CHAT_HISTORY_LIMIT = 30
+
+  function readChatHistory(): { role: string; content: string; timestamp: string }[] {
+    if (!fs.existsSync(chatDir)) fs.mkdirSync(chatDir, { recursive: true })
+    if (!fs.existsSync(chatFile)) return []
+    try { return JSON.parse(fs.readFileSync(chatFile, 'utf-8')) || [] } catch { return [] }
+  }
+
+  function writeChatHistory(history: { role: string; content: string; timestamp: string }[]) {
+    if (!fs.existsSync(chatDir)) fs.mkdirSync(chatDir, { recursive: true })
+    const trimmed = history.length > CHAT_HISTORY_LIMIT ? history.slice(-CHAT_HISTORY_LIMIT) : history
+    fs.writeFileSync(chatFile, JSON.stringify(trimmed, null, 2))
+  }
+
+  function withChatLock<T>(fn: () => Promise<T>): Promise<T> {
+    const next = chatLock.then(fn, fn)
+    chatLock = next.catch(() => {})
+    return next
+  }
+
+  ipcMain.handle('send-to-gemini', async (_e, prompt: string) => {
+    return withChatLock(async () => {
+      try {
+        const vault = loadSecureVault()
+        const geminiKey = vault.apiKeys['gemini'] || ''
+        if (!geminiKey) return { success: false, error: 'No Gemini API key configured. Go to Settings to add one.' }
+
+        const ai = new GoogleGenAI({ apiKey: geminiKey })
+
+        let history = readChatHistory()
+        history.push({ role: 'user', content: prompt, timestamp: new Date().toISOString() })
+        writeChatHistory(history)
+
+        const recentHistory = history.slice(-10)
+        const firstUserIdx = recentHistory.findIndex((m) => m.role !== 'model')
+        const contents = (firstUserIdx > 0 ? recentHistory.slice(firstUserIdx) : recentHistory).map((m) => ({
+          role: m.role === 'model' ? 'model' : 'user',
+          parts: [{ text: m.content }]
+        }))
+
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.0-flash',
+          contents
+        })
+
+        const text = response.text ?? ''
+
+        history = readChatHistory()
+        history.push({ role: 'model', content: text, timestamp: new Date().toISOString() })
+        writeChatHistory(history)
+
+        if (mainWindow) mainWindow.webContents.send('gemini-response', text)
+        return { success: true, text }
+      } catch (err) {
+        return { success: false, error: String(err) }
+      }
+    })
   })
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
