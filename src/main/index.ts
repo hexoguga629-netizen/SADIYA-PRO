@@ -7,10 +7,10 @@ import {
   globalShortcut,
   screen,
   session,
-  safeStorage,
   systemPreferences,
   dialog
 } from 'electron'
+import { loadSecureVault, saveSecureVault, withVaultLock, vaultFileExists } from './security/vault'
 import path, { join } from 'path'
 import fs from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -69,28 +69,6 @@ if (!gotTheLock) {
 
 let mainWindow: BrowserWindow | null = null
 let isOverlayMode = false
-
-const secureConfigPath = join(app.getPath('userData'), 'sadiya_secure_vault.json')
-
-interface SecureVault {
-  apiKeys: Record<string, string>
-  settings: Record<string, string>
-  passwordHash?: string
-}
-
-function loadSecureVault(): SecureVault {
-  try {
-    if (fs.existsSync(secureConfigPath)) {
-      const data = JSON.parse(fs.readFileSync(secureConfigPath, 'utf-8'))
-      return { apiKeys: data.apiKeys || {}, settings: data.settings || {}, passwordHash: data.passwordHash }
-    }
-  } catch {}
-  return { apiKeys: {}, settings: {} }
-}
-
-function saveSecureVault(vault: SecureVault): void {
-  fs.writeFileSync(secureConfigPath, JSON.stringify(vault, null, 2))
-}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -242,15 +220,17 @@ app.whenReady().then(() => {
   }
 
   ipcMain.handle('secure-save-keys', async (_, { groqKey, geminiKey }) => {
-    try {
-      const vault = loadSecureVault()
-      if (groqKey) vault.apiKeys['groq'] = groqKey
-      if (geminiKey) vault.apiKeys['gemini'] = geminiKey
-      saveSecureVault(vault)
-      return { success: true }
-    } catch (error: unknown) {
-      return { success: false, error: error instanceof Error ? error.message : String(error) }
-    }
+    return withVaultLock(async () => {
+      try {
+        const vault = loadSecureVault()
+        if (groqKey) vault.apiKeys['groq'] = groqKey
+        if (geminiKey) vault.apiKeys['gemini'] = geminiKey
+        saveSecureVault(vault)
+        return { success: true }
+      } catch (error: unknown) {
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
+      }
+    })
   })
 
   ipcMain.handle('secure-get-keys', async () => {
@@ -263,7 +243,7 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('check-keys-exist', () => {
-    return fs.existsSync(secureConfigPath)
+    return vaultFileExists()
   })
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
