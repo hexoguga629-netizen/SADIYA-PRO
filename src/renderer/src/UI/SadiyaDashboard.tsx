@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   RiTerminalBoxLine,
   RiTaskLine,
@@ -22,14 +22,20 @@ import {
   RiArrowRightSLine,
   RiCameraLine,
   RiAddLine,
-  RiEqualizer2Line
+  RiEqualizer2Line,
+  RiShieldLine,
+  RiEyeLine
 } from 'react-icons/ri'
 import { HiComputerDesktop } from 'react-icons/hi2'
 import sadiyaAvatar from '../assets/sadiya-avatar.png'
 import { getSystemStatus, SystemStats } from '../services/system-info'
-import { getHistory, ChatMessage } from '../services/iris-ai-brain'
+import { getHistory, ChatMessage, saveMessage } from '../services/iris-ai-brain'
 
-const glassPanel = 'bg-[#0b1929]/70 backdrop-blur-2xl border border-cyan-500/10 rounded-xl shadow-[0_0_40px_rgba(6,182,212,0.04)]'
+const glassPanel =
+  'bg-[#0a1628]/80 backdrop-blur-2xl border border-cyan-500/15 rounded-2xl shadow-[0_0_40px_rgba(6,182,212,0.05),inset_0_1px_0_rgba(255,255,255,0.03)]'
+
+const glowBorder =
+  'before:absolute before:inset-0 before:rounded-2xl before:p-[1px] before:bg-gradient-to-b before:from-cyan-500/20 before:to-transparent before:pointer-events-none before:-z-10'
 
 const navItems = [
   { id: 'console', icon: RiTerminalBoxLine, label: 'CONSOLE' },
@@ -44,19 +50,19 @@ const navItems = [
 ]
 
 const agents = [
-  { name: 'Planner Agent', desc: 'Breaking down your goal...', status: 'ACTIVE', color: 'from-blue-500 to-cyan-500' },
-  { name: 'Research Agent', desc: 'Collecting latest AI news...', status: 'ACTIVE', color: 'from-purple-500 to-pink-500' },
-  { name: 'Browser Agent', desc: 'Navigating and extracting...', status: 'ACTIVE', color: 'from-green-500 to-emerald-500' },
-  { name: 'Memory Agent', desc: 'Storing important context...', status: 'IDLE', color: 'from-amber-500 to-orange-500' },
-  { name: 'System Agent', desc: 'Monitoring system health...', status: 'ACTIVE', color: 'from-cyan-500 to-blue-500' }
+  { name: 'Planner Agent', desc: 'Breaking down your goal...', status: 'ACTIVE', color: 'from-blue-500 to-cyan-500', icon: RiLightbulbLine },
+  { name: 'Research Agent', desc: 'Collecting latest AI news...', status: 'ACTIVE', color: 'from-purple-500 to-pink-500', icon: RiSearchLine },
+  { name: 'Browser Agent', desc: 'Navigating and extracting...', status: 'ACTIVE', color: 'from-green-500 to-emerald-500', icon: RiGlobalLine },
+  { name: 'Memory Agent', desc: 'Storing important context...', status: 'IDLE', color: 'from-amber-500 to-orange-500', icon: RiBrainLine },
+  { name: 'System Agent', desc: 'Monitoring system health...', status: 'ACTIVE', color: 'from-cyan-500 to-blue-500', icon: RiShieldLine }
 ]
 
 const memoryItems = [
-  { icon: '🧠', text: 'You prefer responses in Hinglish', time: 'Today' },
-  { icon: '💻', text: 'Working on SADIYA AI OS Layer', time: 'Today' },
-  { icon: '👤', text: 'You are a developer and builder', time: 'Yesterday' },
-  { icon: '⚡', text: 'Favorite tools: VS Code, Terminal, Chrome', time: 'Yesterday' },
-  { icon: '🎯', text: 'Project: Build next-gen AI OS', time: '2 days ago' }
+  { icon: RiBrainLine, text: 'You prefer responses in Hinglish', time: 'Today', color: 'text-purple-400' },
+  { icon: RiComputerLine, text: 'Working on SADIYA AI OS Layer', time: 'Today', color: 'text-cyan-400' },
+  { icon: RiEyeLine, text: 'You are a developer and builder', time: 'Yesterday', color: 'text-blue-400' },
+  { icon: RiTerminalBoxLine, text: 'Favorite tools: VS Code, Terminal, Chrome', time: 'Yesterday', color: 'text-green-400' },
+  { icon: RiPlayCircleLine, text: 'Project: Build next-gen AI OS', time: '2 days ago', color: 'text-amber-400' }
 ]
 
 const capabilities = [
@@ -81,41 +87,40 @@ function CircularGauge({
   color: string
   size?: number
 }) {
-  const radius = (size - 10) / 2
+  const radius = (size - 12) / 2
   const circumference = 2 * Math.PI * radius
-  const offset = circumference - (value / 100) * circumference
 
   return (
-    <div className="flex flex-col items-center gap-1.5">
-      <span className="text-[10px] font-mono tracking-wider text-zinc-400">{label}</span>
+    <div className="flex flex-col items-center gap-2">
+      <span className="text-[11px] font-mono tracking-[0.2em] text-zinc-400 font-semibold">{label}</span>
       <div className="relative" style={{ width: size, height: size }}>
         <svg width={size} height={size} className="-rotate-90">
-          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="4" />
+          <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth="5" />
           <circle
             cx={size / 2}
             cy={size / 2}
             r={radius}
             fill="none"
             stroke={`url(#grad-${label})`}
-            strokeWidth="4"
+            strokeWidth="5"
             strokeDasharray={circumference}
-            strokeDashoffset={offset}
+            strokeDashoffset={circumference - (value / 100) * circumference}
             strokeLinecap="round"
             className="transition-all duration-1000 ease-out"
-            style={{ filter: `drop-shadow(0 0 8px ${color})` }}
+            style={{ filter: `drop-shadow(0 0 12px ${color})` }}
           />
           <defs>
             <linearGradient id={`grad-${label}`}>
               <stop offset="0%" stopColor={color} />
-              <stop offset="100%" stopColor={color} stopOpacity="0.4" />
+              <stop offset="100%" stopColor={color} stopOpacity="0.3" />
             </linearGradient>
           </defs>
         </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-lg font-bold font-mono text-white">{value}%</span>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-xl font-black font-mono text-white leading-none">{value}<span className="text-xs text-zinc-500">%</span></span>
         </div>
       </div>
-      {detail && <span className="text-[9px] font-mono text-zinc-500">{detail}</span>}
+      {detail && <span className="text-[9px] font-mono text-zinc-500 text-center">{detail}</span>}
     </div>
   )
 }
@@ -126,7 +131,7 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
   const [stats, setStats] = useState<SystemStats | null>(null)
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([])
   const [commandInput, setCommandInput] = useState('')
-  const [voiceActive, setVoiceActive] = useState(true)
+  const [voiceActive, setVoiceActive] = useState(false)
   const [pulsePhase, setPulsePhase] = useState(0)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -142,7 +147,7 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
   useEffect(() => {
     const fetchHistory = async () => {
       const history = await getHistory()
-      if (Array.isArray(history)) setChatHistory(history.slice(-10))
+      if (Array.isArray(history)) setChatHistory(history.slice(-15))
     }
     fetchHistory()
     const interval = setInterval(fetchHistory, 3000)
@@ -154,7 +159,7 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
   }, [chatHistory])
 
   useEffect(() => {
-    const interval = setInterval(() => setPulsePhase((p) => (p + 1) % 360), 50)
+    const interval = setInterval(() => setPulsePhase((p) => (p + 1) % 360), 40)
     return () => clearInterval(interval)
   }, [])
 
@@ -165,17 +170,29 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
   const diskVal = 62
   const gpuVal = 21
 
-  const handleCommand = () => {
+  const handleCommand = useCallback(async () => {
     if (!commandInput.trim()) return
+    const cmd = commandInput.trim()
     setCommandInput('')
-  }
+    try {
+      await saveMessage('user', cmd)
+      await window.electron.ipcRenderer.invoke('send-to-gemini', cmd)
+    } catch {}
+  }, [commandInput])
 
-  const consoleMessages = [
-    { sender: 'SADIYA', text: 'Hello! How can I assist you today?', time: '11:45 PM', type: 'ai' },
-    { sender: 'YOU', text: 'Open Chrome and search latest AI news', time: '11:45 PM', type: 'user' },
-    { sender: 'SADIYA', text: 'Opening Chrome and searching for latest AI news...', time: '11:46 PM', type: 'ai' },
-    { sender: 'TASK COMPLETED', text: 'Found 10+ recent articles. Would you like a summary?', time: '11:47 PM', type: 'task' }
-  ]
+  const consoleMessages = chatHistory.length > 0
+    ? chatHistory.map((msg) => ({
+        sender: msg.role === 'user' ? 'YOU' : 'SADIYA',
+        text: msg.parts[0]?.text || '',
+        time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+        type: msg.role === 'user' ? 'user' : 'ai'
+      }))
+    : [
+        { sender: 'SADIYA', text: 'Hello! How can I assist you today?', time: '11:45 PM', type: 'ai' },
+        { sender: 'YOU', text: 'Open Chrome and search latest AI news', time: '11:45 PM', type: 'user' },
+        { sender: 'SADIYA', text: 'Opening Chrome and searching for latest AI news...', time: '11:46 PM', type: 'ai' },
+        { sender: 'TASK COMPLETED', text: 'Found 10+ recent articles. Would you like a summary?', time: '11:47 PM', type: 'task' }
+      ]
 
   const tasks = [
     { time: '11:47', icon: RiSearchLine, text: 'Research latest AI news', progress: 80 },
@@ -195,45 +212,62 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
   const dateStr = time.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
   return (
-    <div className="flex-1 flex overflow-hidden bg-[#030912] relative">
+    <div className="flex-1 flex overflow-hidden bg-[#020a14] relative">
       {/* Ambient background effects */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-gradient-to-b from-cyan-500/[0.03] via-purple-500/[0.02] to-transparent rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-1/4 w-[700px] h-[400px] bg-gradient-to-t from-blue-500/[0.03] to-transparent rounded-full blur-3xl" />
-        <div className="absolute top-1/3 right-0 w-[400px] h-[400px] bg-gradient-to-l from-purple-500/[0.02] to-transparent rounded-full blur-3xl" />
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-[1200px] h-[600px] bg-gradient-to-b from-cyan-500/[0.04] via-purple-500/[0.02] to-transparent rounded-full blur-3xl"
+          style={{ animation: 'pulse 8s ease-in-out infinite' }}
+        />
+        <div className="absolute bottom-0 left-1/4 w-[800px] h-[500px] bg-gradient-to-t from-blue-600/[0.03] to-transparent rounded-full blur-3xl" />
+        <div
+          className="absolute top-1/3 right-0 w-[500px] h-[500px] bg-gradient-to-l from-purple-600/[0.03] to-transparent rounded-full blur-3xl"
+          style={{ animation: 'pulse 12s ease-in-out infinite' }}
+        />
+        {/* Grid overlay */}
+        <div
+          className="absolute inset-0 opacity-[0.02]"
+          style={{
+            backgroundImage: 'linear-gradient(rgba(6,182,212,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(6,182,212,0.3) 1px, transparent 1px)',
+            backgroundSize: '60px 60px'
+          }}
+        />
       </div>
 
       {/* ==================== LEFT SIDEBAR ==================== */}
-      <div className="w-56 flex flex-col border-r border-cyan-500/10 bg-[#040d1a]/80 backdrop-blur-xl z-10">
+      <div className="w-60 flex flex-col border-r border-cyan-500/10 bg-[#040d1a]/90 backdrop-blur-xl z-10">
         {/* Logo Header */}
-        <div className="p-5 flex items-center gap-3.5 border-b border-cyan-500/10">
-          <div className="w-11 h-11 rounded-full bg-gradient-to-br from-cyan-400 to-purple-600 flex items-center justify-center shadow-[0_0_25px_rgba(6,182,212,0.35)] relative">
-            <div className="absolute inset-0 rounded-full border-2 border-cyan-400/30" style={{ animation: 'spin 8s linear infinite' }} />
-            <span className="text-white font-black text-sm">S</span>
+        <div className="p-5 flex items-center gap-4 border-b border-cyan-500/10">
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-400 to-purple-600 flex items-center justify-center shadow-[0_0_30px_rgba(6,182,212,0.4)] relative">
+            <div
+              className="absolute inset-0 rounded-full border-2 border-cyan-400/30"
+              style={{ animation: 'spin 8s linear infinite' }}
+            />
+            <span className="text-white font-black text-base">S</span>
           </div>
           <div className="flex flex-col">
-            <span className="font-black text-base tracking-[0.15em] text-white">SADIYA</span>
-            <span className="text-[9px] text-zinc-500 tracking-wider">AI OS LAYER</span>
+            <span className="font-black text-lg tracking-[0.2em] text-white">SADIYA</span>
+            <span className="text-[10px] text-cyan-500/60 tracking-[0.3em] font-mono">AI OS LAYER</span>
           </div>
         </div>
 
         {/* Profile */}
-        <div className="px-4 py-3 flex items-center gap-3 border-b border-cyan-500/10">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-500/30 to-purple-500/30 border border-cyan-500/20 flex items-center justify-center">
-            <RiRobot2Line className="text-cyan-400 text-sm" />
+        <div className="px-4 py-4 flex items-center gap-3 border-b border-cyan-500/10">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500/30 to-purple-500/30 border border-cyan-500/20 flex items-center justify-center">
+            <RiRobot2Line className="text-cyan-400 text-lg" />
           </div>
           <div className="flex flex-col flex-1">
             <span className="text-sm font-bold text-white tracking-wide">SADIYA</span>
             <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.6)]" />
-              <span className="text-[9px] text-green-400 font-mono">ONLINE</span>
+              <span className="w-2.5 h-2.5 rounded-full bg-green-400 shadow-[0_0_10px_rgba(74,222,128,0.6)]" />
+              <span className="text-[10px] text-green-400 font-mono font-semibold">ONLINE</span>
             </div>
           </div>
-          <RiArrowRightSLine className="text-zinc-600 text-lg" />
+          <RiArrowRightSLine className="text-zinc-600 text-xl" />
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 py-3 px-3 space-y-1 overflow-y-auto scrollbar-thin">
+        {/* Navigation — BIGGER ICONS */}
+        <nav className="flex-1 py-3 px-3 space-y-1.5 overflow-y-auto scrollbar-thin">
           {navItems.map((item) => (
             <button
               key={item.id}
@@ -244,73 +278,86 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
                   setActiveNav(item.id)
                 }
               }}
-              className={`w-full flex items-center gap-3.5 px-4 py-3 rounded-lg text-[11px] font-semibold tracking-[0.15em] transition-all duration-200 cursor-pointer ${
+              className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-[12px] font-bold tracking-[0.15em] transition-all duration-300 cursor-pointer group ${
                 activeNav === item.id
-                  ? 'bg-gradient-to-r from-cyan-500/15 to-blue-500/10 text-cyan-400 border border-cyan-500/20 shadow-[0_0_20px_rgba(6,182,212,0.1)]'
-                  : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.03]'
+                  ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/10 text-cyan-400 border border-cyan-500/25 shadow-[0_0_25px_rgba(6,182,212,0.12)]'
+                  : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.04] border border-transparent'
               }`}
             >
-              <item.icon className={`text-lg ${activeNav === item.id ? 'text-cyan-400' : ''}`} />
+              <item.icon className={`text-2xl transition-all duration-300 ${activeNav === item.id ? 'text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.5)]' : 'group-hover:text-zinc-300'}`} />
               {item.label}
             </button>
           ))}
         </nav>
 
-        {/* Voice Section - Large */}
-        <div className="px-3 pb-2 border-t border-cyan-500/10 pt-3">
-          <div className={`${glassPanel} p-4 flex flex-col items-center gap-2`}>
-            <span className={`text-[10px] font-bold tracking-[0.25em] ${voiceActive ? 'text-cyan-400' : 'text-zinc-600'}`}>
-              {voiceActive ? 'VOICE ACTIVE' : 'VOICE STANDBY'}
-            </span>
-
-            {/* Waveform - wider */}
-            <div className="flex items-center gap-[2px] h-8 w-full justify-center">
-              {Array.from({ length: 30 }).map((_, i) => (
+        {/* Voice Section — Compact Premium */}
+        <div className="px-3 pb-3 border-t border-cyan-500/10 pt-3">
+          <div className={`${glassPanel} p-3 flex items-center gap-3 relative overflow-hidden`}>
+            {/* Animated background glow when active */}
+            {voiceActive && (
+              <div className="absolute inset-0 pointer-events-none">
                 <div
-                  key={i}
-                  className={`w-[2px] rounded-full transition-all duration-100 ${voiceActive ? 'bg-cyan-400/50' : 'bg-zinc-700/30'}`}
-                  style={{
-                    height: voiceActive
-                      ? `${4 + Math.sin((pulsePhase + i * 12) * Math.PI / 180) * 12 + Math.random() * 6}px`
-                      : '3px'
-                  }}
+                  className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-purple-500/5 to-cyan-500/5"
+                  style={{ animation: 'pulse 2s ease-in-out infinite' }}
                 />
-              ))}
-            </div>
+              </div>
+            )}
 
-            <span className="text-[8px] text-zinc-500 font-mono tracking-wider">
-              {voiceActive ? 'Listening...' : 'Tap to speak'}
-            </span>
-
-            {/* Big Mic Button */}
+            {/* Mic Button */}
             <button
               onClick={() => setVoiceActive(!voiceActive)}
-              className={`w-16 h-16 rounded-full flex items-center justify-center transition-all cursor-pointer relative ${
+              className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-500 cursor-pointer relative flex-shrink-0 ${
                 voiceActive
                   ? 'bg-gradient-to-br from-cyan-500 to-blue-600 shadow-[0_0_40px_rgba(6,182,212,0.5)]'
                   : 'bg-zinc-800/80 border border-zinc-700/50 hover:border-cyan-500/30'
               }`}
             >
               {voiceActive && (
-                <div className="absolute inset-0 rounded-full border-2 border-cyan-400/20" style={{ animation: 'pulse 2s ease-in-out infinite' }} />
+                <>
+                  <div className="absolute inset-0 rounded-full border-2 border-cyan-400/30" style={{ animation: 'ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite' }} />
+                  <div className="absolute -inset-1 rounded-full border border-cyan-400/10" style={{ animation: 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite 0.5s' }} />
+                </>
               )}
-              <RiMicLine className={`text-2xl ${voiceActive ? 'text-white' : 'text-zinc-400'}`} />
+              <RiMicLine className={`text-2xl relative z-10 ${voiceActive ? 'text-white' : 'text-zinc-400'}`} />
             </button>
+
+            {/* Waveform + Label */}
+            <div className="flex-1 flex flex-col gap-1.5 min-w-0 relative z-10">
+              <span className={`text-[10px] font-bold tracking-[0.25em] ${voiceActive ? 'text-cyan-400' : 'text-zinc-600'}`}>
+                {voiceActive ? 'VOICE ACTIVE' : 'VOICE STANDBY'}
+              </span>
+              <div className="flex items-center gap-[2px] h-6">
+                {Array.from({ length: 40 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={`w-[2px] rounded-full transition-all duration-75 ${voiceActive ? 'bg-gradient-to-t from-cyan-500/40 to-cyan-300/80' : 'bg-zinc-700/30'}`}
+                    style={{
+                      height: voiceActive
+                        ? `${3 + Math.sin((pulsePhase + i * 9) * Math.PI / 180) * 10 + Math.random() * 4}px`
+                        : '2px'
+                    }}
+                  />
+                ))}
+              </div>
+              <span className="text-[8px] text-zinc-600 font-mono tracking-wider">
+                {voiceActive ? 'Listening...' : 'Tap mic to speak'}
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Bottom Stats Bar */}
         <div className="px-4 pb-3 flex justify-between text-[9px] font-mono">
-          <div className="flex flex-col items-center">
-            <span className="text-zinc-600">TEMP</span>
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-zinc-600 tracking-wider">TEMP</span>
             <span className="text-cyan-400/80 font-bold">{stats?.temperature ?? 48}°C</span>
           </div>
-          <div className="flex flex-col items-center">
-            <span className="text-zinc-600">NET</span>
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-zinc-600 tracking-wider">NET</span>
             <span className="text-cyan-400/80 font-bold">120 Mbps</span>
           </div>
-          <div className="flex flex-col items-center">
-            <span className="text-zinc-600">BATTERY</span>
+          <div className="flex flex-col items-center gap-0.5">
+            <span className="text-zinc-600 tracking-wider">BATTERY</span>
             <span className="text-green-400 font-bold">100%</span>
           </div>
         </div>
@@ -319,16 +366,19 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
       {/* ==================== MAIN CONTENT ==================== */}
       <div className="flex-1 flex flex-col min-w-0 z-10">
         {/* Top Bar */}
-        <div className="h-11 flex items-center justify-between px-5 border-b border-cyan-500/10 bg-[#040d1a]/60 backdrop-blur-xl">
+        <div className="h-12 flex items-center justify-between px-6 border-b border-cyan-500/10 bg-[#040d1a]/60 backdrop-blur-xl">
           <div className="flex items-center gap-3">
-            <div className="h-1.5 w-40 rounded-full bg-gradient-to-r from-cyan-500/60 via-purple-500/40 to-transparent" />
+            <div className="h-1.5 w-48 rounded-full bg-gradient-to-r from-cyan-500/60 via-purple-500/40 to-transparent" />
           </div>
-          <span className="text-[11px] font-mono tracking-[0.3em] text-cyan-500/50 font-bold">SADIYA AI OS LAYER</span>
-          <div className="flex items-center gap-5">
-            <div className="flex items-center gap-1.5">
-              <RiEqualizer2Line className="text-zinc-500 text-sm" />
+          <span className="text-[11px] font-mono tracking-[0.3em] text-cyan-500/40 font-bold">SADIYA AI OS LAYER</span>
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2">
+              <RiEqualizer2Line className="text-zinc-500 text-base cursor-pointer hover:text-cyan-400 transition-colors" />
             </div>
-            <RiSettings4Line className="text-zinc-500 text-sm cursor-pointer hover:text-cyan-400 transition-colors" />
+            <RiSettings4Line
+              className="text-zinc-500 text-base cursor-pointer hover:text-cyan-400 transition-colors"
+              onClick={onOpenSettings}
+            />
             <div className="flex items-center gap-2 text-[10px] font-mono">
               <span className="w-2 h-2 rounded-full bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.6)]" />
               <span className="text-green-400 font-semibold">Online</span>
@@ -346,31 +396,45 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
         <div className="flex-1 flex overflow-hidden p-4 gap-4">
           {/* ===== CENTER COLUMN ===== */}
           <div className="flex-1 flex flex-col gap-4 min-w-0">
-            {/* Greeting Card */}
-            <div className={`${glassPanel} p-6`}>
-              <div className="h-1 w-full bg-gradient-to-r from-cyan-500/50 via-purple-500/30 to-transparent rounded-full mb-5" />
-              <h1 className="text-3xl font-bold text-white">
-                {greeting}, I'm{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-500">SADIYA</span>
-              </h1>
-              <p className="text-zinc-400 text-sm mt-2">Your AI OS Companion. Ready to assist, automate and execute.</p>
-              <div className="flex gap-3 mt-5 flex-wrap">
-                {["What's on my schedule?", "Analyze this for me", "Open research mode", "System status"].map((q) => (
+            {/* Greeting Card — CENTER ALIGNED, MORE FUTURISTIC */}
+            <div className={`${glassPanel} p-7 relative overflow-hidden`}>
+              {/* Top accent line */}
+              <div className="h-[2px] w-full bg-gradient-to-r from-cyan-500/60 via-purple-500/40 to-cyan-500/20 rounded-full mb-6" />
+
+              {/* Centered greeting */}
+              <div className="text-center">
+                <h1 className="text-4xl font-black text-white tracking-tight">
+                  {greeting}, I&apos;m{' '}
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-500 drop-shadow-[0_0_20px_rgba(6,182,212,0.3)]">
+                    SADIYA
+                  </span>
+                </h1>
+                <p className="text-zinc-400 text-sm mt-3 font-mono tracking-wider">
+                  Your AI OS Companion. Ready to assist, automate and execute.
+                </p>
+              </div>
+
+              {/* Quick action pills */}
+              <div className="flex gap-3 mt-6 flex-wrap justify-center">
+                {["What's on my schedule?", 'Analyze this for me', 'Open research mode', 'System status'].map((q) => (
                   <button
                     key={q}
-                    className="px-4 py-2 text-[11px] font-medium tracking-wider bg-white/[0.04] border border-white/10 rounded-lg text-zinc-400 hover:text-cyan-400 hover:border-cyan-500/30 hover:bg-cyan-500/[0.06] transition-all cursor-pointer"
+                    className="px-5 py-2.5 text-[11px] font-semibold tracking-wider bg-white/[0.04] border border-white/10 rounded-xl text-zinc-400 hover:text-cyan-400 hover:border-cyan-500/30 hover:bg-cyan-500/[0.08] hover:shadow-[0_0_20px_rgba(6,182,212,0.1)] transition-all duration-300 cursor-pointer"
                   >
                     {q}
                   </button>
                 ))}
               </div>
+
+              {/* Bottom accent */}
+              <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent" />
             </div>
 
             {/* AI Avatar + Capabilities Ring */}
             <div className={`${glassPanel} flex-1 flex items-center justify-center relative overflow-hidden min-h-0`}>
               {/* Orbit rings */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-80 h-80 rounded-full border border-cyan-500/15" style={{ animation: 'spin 25s linear infinite' }} />
+                <div className="w-80 h-80 rounded-full border border-cyan-500/10" style={{ animation: 'spin 25s linear infinite' }} />
                 <div className="absolute w-[420px] h-[420px] rounded-full border border-cyan-500/8" style={{ animation: 'spin 40s linear infinite reverse' }} />
                 <div className="absolute w-[520px] h-[520px] rounded-full border border-purple-500/5" style={{ animation: 'spin 60s linear infinite' }} />
               </div>
@@ -378,10 +442,8 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
               {/* Avatar */}
               <div className="relative z-10 flex flex-col items-center">
                 <div className="relative">
-                  {/* Glow rings */}
-                  <div className="absolute -inset-4 rounded-full bg-gradient-to-b from-cyan-500/10 to-purple-500/5 blur-xl" />
+                  <div className="absolute -inset-5 rounded-full bg-gradient-to-b from-cyan-500/10 to-purple-500/5 blur-xl" />
                   <div className="absolute -inset-2 rounded-full border border-cyan-500/20" style={{ animation: 'pulse 3s ease-in-out infinite' }} />
-
                   <div className="w-52 h-52 rounded-full overflow-hidden border-2 border-cyan-500/30 shadow-[0_0_80px_rgba(6,182,212,0.2),0_0_160px_rgba(139,92,246,0.08)] relative">
                     <img src={sadiyaAvatar} alt="SADIYA AI" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-t from-cyan-500/10 to-transparent" />
@@ -403,12 +465,12 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
                         transform: `translate(${x}px, ${y}px)`,
                         top: '50%',
                         left: '50%',
-                        marginTop: '-12px',
-                        marginLeft: '-40px'
+                        marginTop: '-14px',
+                        marginLeft: '-45px'
                       }}
                     >
-                      <div className="w-7 h-7 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.1)]">
-                        <cap.icon className="text-cyan-400 text-sm" />
+                      <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.1)]">
+                        <cap.icon className="text-cyan-400 text-base" />
                       </div>
                       <span className="text-[10px] font-bold tracking-[0.15em] text-zinc-400">{cap.label}</span>
                     </div>
@@ -417,77 +479,91 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
 
                 {/* Core Active Label */}
                 <div className="mt-6 flex items-center gap-2">
-                  <div className="w-6 h-[1px] bg-gradient-to-r from-transparent to-cyan-500/40" />
+                  <div className="w-8 h-[1px] bg-gradient-to-r from-transparent to-cyan-500/40" />
                   <span className="text-[9px] font-mono tracking-[0.3em] text-cyan-500/60">SADIYA CORE ACTIVE</span>
-                  <div className="w-6 h-[1px] bg-gradient-to-l from-transparent to-cyan-500/40" />
+                  <div className="w-8 h-[1px] bg-gradient-to-l from-transparent to-cyan-500/40" />
                 </div>
               </div>
             </div>
 
-            {/* Bottom Panels Row - Console + Task Timeline */}
-            <div className="flex gap-4 h-52">
-              {/* Console */}
-              <div className={`${glassPanel} flex-1 flex flex-col min-w-0`}>
-                <div className="flex items-center justify-between px-4 py-3 border-b border-cyan-500/10">
-                  <span className="text-[11px] font-bold tracking-[0.2em] text-white">CONSOLE</span>
-                  <div className="flex items-center gap-1.5 text-zinc-500">
-                    <span className="text-[8px]">SADIYA CORE ACTIVE</span>
-                    <div className="flex gap-0.5">
-                      <span className="text-zinc-600">&larr;</span>
-                      <span className="text-zinc-600">&rarr;</span>
-                    </div>
+            {/* Bottom Panels Row — TALLER Console + Task Timeline */}
+            <div className="flex gap-4 h-72">
+              {/* Console — TALLER */}
+              <div className={`${glassPanel} flex-1 flex flex-col min-w-0 relative ${glowBorder}`}>
+                <div className="flex items-center justify-between px-5 py-3.5 border-b border-cyan-500/10">
+                  <div className="flex items-center gap-2.5">
+                    <RiTerminalBoxLine className="text-cyan-400 text-lg" />
+                    <span className="text-[12px] font-bold tracking-[0.2em] text-white">CONSOLE</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] text-cyan-500/50 font-mono">SADIYA CORE ACTIVE</span>
+                    <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.6)]" />
                   </div>
                 </div>
-                <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-2 space-y-3 scrollbar-thin">
+                <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-3 space-y-4 scrollbar-thin">
                   {consoleMessages.map((msg, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 mt-0.5 ${
-                        msg.type === 'ai' ? 'bg-cyan-500/20 text-cyan-400' :
-                        msg.type === 'user' ? 'bg-purple-500/20 text-purple-400' :
-                        'bg-green-500/20 text-green-400'
-                      }`}>
-                        {msg.type === 'ai' ? 'S' : msg.type === 'user' ? 'Y' : '✓'}
+                    <div key={i} className="flex items-start gap-3 group">
+                      <div
+                        className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5 ${
+                          msg.type === 'ai'
+                            ? 'bg-gradient-to-br from-cyan-500/30 to-blue-500/20 text-cyan-400 border border-cyan-500/20'
+                            : msg.type === 'user'
+                              ? 'bg-gradient-to-br from-purple-500/30 to-pink-500/20 text-purple-400 border border-purple-500/20'
+                              : 'bg-gradient-to-br from-green-500/30 to-emerald-500/20 text-green-400 border border-green-500/20'
+                        }`}
+                      >
+                        {msg.type === 'ai' ? 'S' : msg.type === 'user' ? 'Y' : '\u2713'}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className={`text-[10px] font-bold tracking-wider ${
-                            msg.type === 'ai' ? 'text-cyan-400' :
-                            msg.type === 'user' ? 'text-purple-400' :
-                            'text-green-400'
-                          }`}>{msg.sender}</span>
-                          <span className="text-[8px] text-zinc-600 font-mono">{msg.time}</span>
+                          <span
+                            className={`text-[11px] font-bold tracking-wider ${
+                              msg.type === 'ai'
+                                ? 'text-cyan-400'
+                                : msg.type === 'user'
+                                  ? 'text-purple-400'
+                                  : 'text-green-400'
+                            }`}
+                          >
+                            {msg.sender}
+                          </span>
                         </div>
-                        <p className="text-[11px] text-zinc-400 mt-0.5 leading-relaxed">{msg.text}</p>
+                        <p className="text-[12px] text-zinc-300 mt-1 leading-relaxed">{msg.text}</p>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Task Timeline */}
-              <div className={`${glassPanel} flex-1 flex flex-col min-w-0`}>
-                <div className="flex items-center justify-between px-4 py-3 border-b border-cyan-500/10">
-                  <span className="text-[11px] font-bold tracking-[0.2em] text-white">TASK TIMELINE</span>
+              {/* Task Timeline — TALLER */}
+              <div className={`${glassPanel} flex-1 flex flex-col min-w-0 relative ${glowBorder}`}>
+                <div className="flex items-center justify-between px-5 py-3.5 border-b border-cyan-500/10">
+                  <div className="flex items-center gap-2.5">
+                    <RiTimeLine className="text-cyan-400 text-lg" />
+                    <span className="text-[12px] font-bold tracking-[0.2em] text-white">TASK TIMELINE</span>
+                  </div>
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
-                    <span className="text-[9px] text-red-400 font-mono">Live</span>
+                    <span className="text-[10px] text-red-400 font-mono font-semibold">Live</span>
                   </div>
                 </div>
-                <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2.5 scrollbar-thin">
+                <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3 scrollbar-thin">
                   {tasks.map((task, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <span className="text-[9px] text-zinc-600 font-mono w-10 flex-shrink-0">{task.time}</span>
-                      <div className="w-7 h-7 rounded-lg bg-white/[0.04] border border-white/5 flex items-center justify-center flex-shrink-0">
-                        <task.icon className="text-zinc-400 text-xs" />
+                    <div key={i} className="flex items-center gap-3 group">
+                      <span className="text-[10px] text-zinc-600 font-mono w-10 flex-shrink-0">{task.time}</span>
+                      <div className="w-9 h-9 rounded-xl bg-white/[0.05] border border-white/5 flex items-center justify-center flex-shrink-0 group-hover:border-cyan-500/20 transition-colors">
+                        <task.icon className="text-zinc-400 text-base group-hover:text-cyan-400 transition-colors" />
                       </div>
-                      <span className="text-[11px] text-zinc-300 flex-1 truncate">{task.text}</span>
+                      <span className="text-[12px] text-zinc-300 flex-1 truncate">{task.text}</span>
                       {task.done ? (
-                        <div className="flex items-center gap-1">
-                          <RiCheckDoubleLine className="text-green-400 text-xs" />
-                          <span className="text-[9px] text-green-400 font-mono">Completed</span>
+                        <div className="flex items-center gap-1.5 bg-green-500/10 px-2.5 py-1 rounded-full border border-green-500/15">
+                          <RiCheckDoubleLine className="text-green-400 text-sm" />
+                          <span className="text-[9px] text-green-400 font-mono font-semibold">Completed</span>
                         </div>
                       ) : (
-                        <span className="text-[9px] text-cyan-400 font-mono font-bold">{task.progress}%</span>
+                        <span className="text-[10px] text-cyan-400 font-mono font-bold bg-cyan-500/10 px-2.5 py-1 rounded-full border border-cyan-500/15">
+                          {task.progress}%
+                        </span>
                       )}
                     </div>
                   ))}
@@ -496,78 +572,93 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
             </div>
           </div>
 
-          {/* ===== RIGHT COLUMN ===== */}
-          <div className="w-80 flex flex-col gap-4 flex-shrink-0">
-            {/* System Overview */}
-            <div className={`${glassPanel} p-5`}>
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-[11px] font-bold tracking-[0.2em] text-white">SYSTEM OVERVIEW</span>
-                <div className="w-7 h-7 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center cursor-pointer hover:bg-cyan-500/20 transition-colors">
-                  <RiCpuLine className="text-cyan-400 text-xs" />
+          {/* ===== RIGHT COLUMN — WIDER ===== */}
+          <div className="w-96 flex flex-col gap-4 flex-shrink-0">
+            {/* System Overview — BIGGER */}
+            <div className={`${glassPanel} p-6 relative ${glowBorder}`}>
+              <div className="flex items-center justify-between mb-5">
+                <span className="text-[12px] font-bold tracking-[0.2em] text-white">SYSTEM OVERVIEW</span>
+                <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center cursor-pointer hover:bg-cyan-500/20 transition-colors">
+                  <RiCpuLine className="text-cyan-400 text-base" />
                 </div>
               </div>
-              <div className="flex justify-between gap-2">
-                <CircularGauge value={cpuVal} label="CPU" detail="3.2 GHz" color="#06b6d4" size={70} />
-                <CircularGauge value={ramVal} label="RAM" detail={`${ramFree} / ${ramTotal}`} color="#a855f7" size={70} />
-                <CircularGauge value={diskVal} label="DISK" detail="233 / 476 GB" color="#22c55e" size={70} />
-                <CircularGauge value={gpuVal} label="GPU" detail="NVIDIA RTX" color="#f59e0b" size={70} />
+              <div className="flex justify-between gap-3">
+                <CircularGauge value={cpuVal} label="CPU" detail="3.2 GHz" color="#06b6d4" size={80} />
+                <CircularGauge value={ramVal} label="RAM" detail={`${ramFree} / ${ramTotal}`} color="#a855f7" size={80} />
+                <CircularGauge value={diskVal} label="DISK" detail="233 / 476 GB" color="#22c55e" size={80} />
+                <CircularGauge value={gpuVal} label="GPU" detail="NVIDIA RTX" color="#f59e0b" size={80} />
               </div>
-              <div className="mt-4 flex items-center justify-between text-[9px] font-mono text-zinc-500">
+              <div className="mt-5 flex items-center justify-between text-[10px] font-mono text-zinc-500">
                 <span>OS: {stats?.os?.type ?? 'Windows 11'}</span>
                 <span>Uptime: {stats?.os?.uptime ?? '3h 42m'}</span>
-                <span>Status: <span className="text-green-400 font-bold">Optimal</span></span>
+                <span>
+                  Status: <span className="text-green-400 font-bold">Optimal</span>
+                </span>
               </div>
             </div>
 
-            {/* Active Agents */}
-            <div className={`${glassPanel} p-5`}>
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-[11px] font-bold tracking-[0.2em] text-white">ACTIVE AGENTS</span>
-                <div className="w-7 h-7 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
-                  <span className="text-[10px] font-bold text-cyan-400">{agents.filter(a => a.status === 'ACTIVE').length}</span>
+            {/* Active Agents — BIGGER */}
+            <div className={`${glassPanel} p-6 relative ${glowBorder}`}>
+              <div className="flex items-center justify-between mb-5">
+                <span className="text-[12px] font-bold tracking-[0.2em] text-white">ACTIVE AGENTS</span>
+                <div className="w-8 h-8 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
+                  <span className="text-[11px] font-bold text-cyan-400">{agents.filter((a) => a.status === 'ACTIVE').length}</span>
                 </div>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-3.5">
                 {agents.map((agent, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${agent.color} flex items-center justify-center shadow-lg flex-shrink-0 opacity-80`}>
-                      <RiRobot2Line className="text-white text-sm" />
+                  <div key={i} className="flex items-center gap-3.5 group">
+                    <div
+                      className={`w-11 h-11 rounded-xl bg-gradient-to-br ${agent.color} flex items-center justify-center shadow-lg flex-shrink-0 opacity-90 group-hover:opacity-100 transition-opacity`}
+                    >
+                      <agent.icon className="text-white text-lg" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <span className="text-[11px] font-bold text-white block">{agent.name}</span>
-                      <span className="text-[9px] text-zinc-500 block truncate">{agent.desc}</span>
+                      <span className="text-[12px] font-bold text-white block">{agent.name}</span>
+                      <span className="text-[10px] text-zinc-500 block truncate">{agent.desc}</span>
                     </div>
-                    <span className={`text-[9px] font-bold tracking-wider px-2.5 py-1 rounded-full ${
-                      agent.status === 'ACTIVE'
-                        ? 'bg-green-500/15 text-green-400 border border-green-500/20'
-                        : 'bg-zinc-700/30 text-zinc-500 border border-zinc-600/20'
-                    }`}>{agent.status}</span>
+                    <span
+                      className={`text-[9px] font-bold tracking-wider px-3 py-1.5 rounded-full ${
+                        agent.status === 'ACTIVE'
+                          ? 'bg-green-500/15 text-green-400 border border-green-500/20 shadow-[0_0_10px_rgba(74,222,128,0.1)]'
+                          : 'bg-zinc-700/30 text-zinc-500 border border-zinc-600/20'
+                      }`}
+                    >
+                      {agent.status}
+                    </span>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Memory Snapshot */}
-            <div className={`${glassPanel} p-5 flex-1`}>
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-[11px] font-bold tracking-[0.2em] text-white">MEMORY SNAPSHOT</span>
-                <span className="text-[9px] text-cyan-400 font-mono cursor-pointer hover:text-cyan-300">View All</span>
+            {/* Memory Snapshot — BIGGER */}
+            <div className={`${glassPanel} p-6 flex-1 relative ${glowBorder}`}>
+              <div className="flex items-center justify-between mb-5">
+                <span className="text-[12px] font-bold tracking-[0.2em] text-white">MEMORY SNAPSHOT</span>
+                <span className="text-[10px] text-cyan-400 font-mono cursor-pointer hover:text-cyan-300 transition-colors">
+                  View All
+                </span>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {memoryItems.map((item, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <span className="text-sm flex-shrink-0">{item.icon}</span>
-                    <span className="text-[11px] text-zinc-400 flex-1 truncate">{item.text}</span>
+                  <div key={i} className="flex items-center gap-3.5 group">
+                    <div className="w-9 h-9 rounded-lg bg-white/[0.04] border border-white/5 flex items-center justify-center flex-shrink-0 group-hover:border-cyan-500/20 transition-colors">
+                      <item.icon className={`text-base ${item.color}`} />
+                    </div>
+                    <span className="text-[12px] text-zinc-300 flex-1 truncate">{item.text}</span>
                     <span className="text-[9px] text-zinc-600 font-mono flex-shrink-0">{item.time}</span>
                   </div>
                 ))}
               </div>
 
               {/* SADIYA Status */}
-              <div className="mt-5 pt-4 border-t border-cyan-500/10">
+              <div className="mt-6 pt-4 border-t border-cyan-500/10">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold tracking-[0.15em] text-white">SADIYA STATUS</span>
-                  <span className="text-[9px] text-green-400 font-mono font-bold">All Systems Operational</span>
+                  <span className="text-[11px] font-bold tracking-[0.15em] text-white">SADIYA STATUS</span>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.6)]" />
+                    <span className="text-[10px] text-green-400 font-mono font-bold">All Systems Operational</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -576,7 +667,7 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
 
         {/* ===== COMMAND BAR ===== */}
         <div className="px-4 pb-4">
-          <div className={`${glassPanel} flex items-center gap-3 px-5 py-3`}>
+          <div className={`${glassPanel} flex items-center gap-3 px-5 py-3.5`}>
             <input
               type="text"
               value={commandInput}
@@ -587,14 +678,14 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
             />
             <button
               onClick={handleCommand}
-              className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-[0_0_20px_rgba(6,182,212,0.3)] hover:shadow-[0_0_30px_rgba(6,182,212,0.5)] transition-all cursor-pointer"
+              className="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-[0_0_25px_rgba(6,182,212,0.3)] hover:shadow-[0_0_35px_rgba(6,182,212,0.5)] transition-all cursor-pointer"
             >
               <RiSendPlane2Line className="text-white text-lg" />
             </button>
           </div>
 
           {/* Quick Actions */}
-          <div className="flex items-center gap-4 mt-2 px-1 justify-center">
+          <div className="flex items-center gap-5 mt-2.5 px-1 justify-center">
             {[
               { icon: RiTerminalBoxLine, label: 'Open Terminal' },
               { icon: HiComputerDesktop, label: 'System Info' },
@@ -604,9 +695,9 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
             ].map((action) => (
               <button
                 key={action.label}
-                className="flex items-center gap-1.5 text-[10px] text-zinc-600 hover:text-cyan-400 transition-colors cursor-pointer font-mono tracking-wider"
+                className="flex items-center gap-2 text-[10px] text-zinc-600 hover:text-cyan-400 transition-all duration-300 cursor-pointer font-mono tracking-wider group"
               >
-                <action.icon className="text-xs" />
+                <action.icon className="text-sm group-hover:drop-shadow-[0_0_6px_rgba(6,182,212,0.4)]" />
                 {action.label}
               </button>
             ))}
