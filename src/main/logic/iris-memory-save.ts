@@ -26,7 +26,7 @@ export default function registerIpcHandlers({ ipcMain, app }: { ipcMain: IpcMain
       }
       history.push(newEntry)
 
-      if (history.length > 20) history = history.slice(-20)
+      if (history.length > 30) history = history.slice(-30)
 
       fs.writeFileSync(FILE_PATH, JSON.stringify(history, null, 2))
       return true
