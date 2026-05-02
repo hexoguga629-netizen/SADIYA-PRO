@@ -6,7 +6,7 @@ const PROTECTED_PROCESSES = [
   'wininit.exe', 'winlogon.exe', 'services.exe', 'taskmgr.exe', 'system', 'registry'
 ]
 
-const SHELL_META = /[;&|`$(){}[\]!#~<>]/
+const SHELL_META = /[;&|`$(){}[\]!#~<>"'\\\n\r]/
 
 export default function registerAppLauncher(ipcMain: IpcMain) {
   ipcMain.removeHandler('open-app')

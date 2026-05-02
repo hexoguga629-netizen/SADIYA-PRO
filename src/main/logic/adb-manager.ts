@@ -9,7 +9,7 @@ const execAsync = util.promisify(exec)
 const IP_RE = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
 const PORT_RE = /^\d{1,5}$/
 const PKG_RE = /^[a-zA-Z0-9_.]+$/
-const SHELL_META = /[;&|`$(){}\[\]!#~<>]/
+const SHELL_META = /[;&|`$(){}\[\]!#~<>"'\\\n\r]/
 
 function validateIpPort(ip: string, port: string): string | null {
   if (!IP_RE.test(ip)) return 'Invalid IP address'
