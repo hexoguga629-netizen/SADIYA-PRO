@@ -72,6 +72,26 @@ let isOverlayMode = false
 
 const secureConfigPath = join(app.getPath('userData'), 'sadiya_secure_vault.json')
 
+interface SecureVault {
+  apiKeys: Record<string, string>
+  settings: Record<string, string>
+  passwordHash?: string
+}
+
+function loadSecureVault(): SecureVault {
+  try {
+    if (fs.existsSync(secureConfigPath)) {
+      const data = JSON.parse(fs.readFileSync(secureConfigPath, 'utf-8'))
+      return { apiKeys: data.apiKeys || {}, settings: data.settings || {}, passwordHash: data.passwordHash }
+    }
+  } catch {}
+  return { apiKeys: {}, settings: {} }
+}
+
+function saveSecureVault(vault: SecureVault): void {
+  fs.writeFileSync(secureConfigPath, JSON.stringify(vault, null, 2))
+}
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1280,
@@ -223,19 +243,10 @@ app.whenReady().then(() => {
 
   ipcMain.handle('secure-save-keys', async (_, { groqKey, geminiKey }) => {
     try {
-      let groqEncrypted: string
-      let geminiEncrypted: string
-
-      if (safeStorage.isEncryptionAvailable()) {
-        groqEncrypted = safeStorage.encryptString(groqKey).toString('base64')
-        geminiEncrypted = safeStorage.encryptString(geminiKey).toString('base64')
-      } else {
-        groqEncrypted = Buffer.from(groqKey).toString('base64')
-        geminiEncrypted = Buffer.from(geminiKey).toString('base64')
-      }
-
-      const secureData = { groq: groqEncrypted, gemini: geminiEncrypted }
-      fs.writeFileSync(secureConfigPath, JSON.stringify(secureData))
+      const vault = loadSecureVault()
+      if (groqKey) vault.apiKeys['groq'] = groqKey
+      if (geminiKey) vault.apiKeys['gemini'] = geminiKey
+      saveSecureVault(vault)
       return { success: true }
     } catch (error: unknown) {
       return { success: false, error: error instanceof Error ? error.message : String(error) }
@@ -243,21 +254,9 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('secure-get-keys', async () => {
-    if (!fs.existsSync(secureConfigPath)) return null
     try {
-      const data = JSON.parse(fs.readFileSync(secureConfigPath, 'utf8'))
-      let groqKey: string
-      let geminiKey: string
-
-      if (safeStorage.isEncryptionAvailable()) {
-        groqKey = safeStorage.decryptString(Buffer.from(data.groq, 'base64'))
-        geminiKey = safeStorage.decryptString(Buffer.from(data.gemini, 'base64'))
-      } else {
-        groqKey = Buffer.from(data.groq, 'base64').toString('utf8')
-        geminiKey = Buffer.from(data.gemini, 'base64').toString('utf8')
-      }
-
-      return { groqKey, geminiKey }
+      const vault = loadSecureVault()
+      return { groqKey: vault.apiKeys['groq'] || '', geminiKey: vault.apiKeys['gemini'] || '' }
     } catch {
       return null
     }
