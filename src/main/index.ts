@@ -304,6 +304,15 @@ app.whenReady().then(() => {
         if (mainWindow) mainWindow.webContents.send('gemini-response', text)
         return { success: true, text }
       } catch (err) {
+        // Rollback: remove the orphaned user message so consecutive user-role
+        // entries don't cascade into permanent Gemini API failures
+        try {
+          const current = readChatHistory()
+          if (current.length > 0 && current[current.length - 1].role === 'user') {
+            current.pop()
+            writeChatHistory(current)
+          }
+        } catch { /* best-effort rollback */ }
         return { success: false, error: String(err) }
       }
     })
