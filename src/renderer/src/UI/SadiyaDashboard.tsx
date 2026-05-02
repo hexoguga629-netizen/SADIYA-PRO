@@ -29,7 +29,7 @@ import {
 import { HiComputerDesktop } from 'react-icons/hi2'
 import sadiyaAvatar from '../assets/sadiya-avatar.png'
 import { getSystemStatus, SystemStats } from '../services/system-info'
-import { getHistory, ChatMessage, saveMessage } from '../services/iris-ai-brain'
+import { getHistory, ChatMessage } from '../services/iris-ai-brain'
 
 const glassPanel =
   'bg-[#0a1628]/80 backdrop-blur-2xl border border-cyan-500/15 rounded-2xl shadow-[0_0_40px_rgba(6,182,212,0.05),inset_0_1px_0_rgba(255,255,255,0.03)]'
@@ -170,14 +170,21 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
   const diskVal = 62
   const gpuVal = 21
 
+  const [commandError, setCommandError] = useState<string | null>(null)
+
   const handleCommand = useCallback(async () => {
     if (!commandInput.trim()) return
     const cmd = commandInput.trim()
     setCommandInput('')
+    setCommandError(null)
     try {
-      await saveMessage('user', cmd)
-      await window.electron.ipcRenderer.invoke('send-to-gemini', cmd)
-    } catch {}
+      const result = await window.electron.ipcRenderer.invoke('send-to-gemini', cmd)
+      if (result && !result.success) {
+        setCommandError(result.error || 'Unknown error from AI core')
+      }
+    } catch (err) {
+      setCommandError(err instanceof Error ? err.message : 'Neural link disrupted. Retry your command.')
+    }
   }, [commandInput])
 
   const consoleMessages = chatHistory.length > 0
@@ -667,6 +674,21 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
 
         {/* ===== COMMAND BAR ===== */}
         <div className="px-4 pb-4">
+          {/* Cinematic Error Display */}
+          {commandError && (
+            <div className="mb-2 px-5 py-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-3 shadow-[0_0_20px_rgba(239,68,68,0.1)]">
+              <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-red-400 text-sm font-bold">!</span>
+              </div>
+              <p className="text-[12px] text-red-300 font-mono flex-1">{commandError}</p>
+              <button
+                onClick={() => setCommandError(null)}
+                className="text-red-400/60 hover:text-red-300 text-lg cursor-pointer"
+              >
+                &times;
+              </button>
+            </div>
+          )}
           <div className={`${glassPanel} flex items-center gap-3 px-5 py-3.5`}>
             <input
               type="text"
