@@ -15,6 +15,7 @@ import {
   RiBarChartBoxLine,
   RiBookOpenLine,
   RiMicLine,
+  RiMicOffLine,
   RiSendPlane2Line,
   RiCpuLine,
   RiTimeLine,
@@ -24,7 +25,10 @@ import {
   RiAddLine,
   RiEqualizer2Line,
   RiShieldLine,
-  RiEyeLine
+  RiEyeLine,
+  RiLoader4Line,
+  RiCloseCircleLine,
+  RiVolumeUpLine
 } from 'react-icons/ri'
 import { HiComputerDesktop } from 'react-icons/hi2'
 import sadiyaAvatar from '../assets/sadiya-avatar.png'
@@ -49,21 +53,41 @@ const navItems = [
   { id: 'settings', icon: RiSettings4Line, label: 'SETTINGS' }
 ]
 
-const agents = [
-  { name: 'Planner Agent', desc: 'Breaking down your goal...', status: 'ACTIVE', color: 'from-blue-500 to-cyan-500', icon: RiLightbulbLine },
-  { name: 'Research Agent', desc: 'Collecting latest AI news...', status: 'ACTIVE', color: 'from-purple-500 to-pink-500', icon: RiSearchLine },
-  { name: 'Browser Agent', desc: 'Navigating and extracting...', status: 'ACTIVE', color: 'from-green-500 to-emerald-500', icon: RiGlobalLine },
-  { name: 'Memory Agent', desc: 'Storing important context...', status: 'IDLE', color: 'from-amber-500 to-orange-500', icon: RiBrainLine },
-  { name: 'System Agent', desc: 'Monitoring system health...', status: 'ACTIVE', color: 'from-cyan-500 to-blue-500', icon: RiShieldLine }
-]
+interface AgentStatus {
+  name: string
+  status: 'ACTIVE' | 'IDLE'
+  desc: string
+}
 
-const memoryItems = [
-  { icon: RiBrainLine, text: 'You prefer responses in Hinglish', time: 'Today', color: 'text-purple-400' },
-  { icon: RiComputerLine, text: 'Working on SADIYA AI OS Layer', time: 'Today', color: 'text-cyan-400' },
-  { icon: RiEyeLine, text: 'You are a developer and builder', time: 'Yesterday', color: 'text-blue-400' },
-  { icon: RiTerminalBoxLine, text: 'Favorite tools: VS Code, Terminal, Chrome', time: 'Yesterday', color: 'text-green-400' },
-  { icon: RiPlayCircleLine, text: 'Project: Build next-gen AI OS', time: '2 days ago', color: 'text-amber-400' }
-]
+interface TaskItem {
+  id: string
+  text: string
+  status: 'running' | 'completed' | 'failed'
+  agent: string
+  timestamp: string
+  result?: string
+}
+
+interface MemoryItem {
+  fact: string
+  timestamp: string
+}
+
+const AGENT_META: Record<string, { color: string; icon: typeof RiLightbulbLine }> = {
+  'Planner Agent': { color: 'from-blue-500 to-cyan-500', icon: RiLightbulbLine },
+  'Research Agent': { color: 'from-purple-500 to-pink-500', icon: RiSearchLine },
+  'Browser Agent': { color: 'from-green-500 to-emerald-500', icon: RiGlobalLine },
+  'Memory Agent': { color: 'from-amber-500 to-orange-500', icon: RiBrainLine },
+  'System Agent': { color: 'from-cyan-500 to-blue-500', icon: RiShieldLine }
+}
+
+const TASK_ICON_MAP: Record<string, typeof RiSearchLine> = {
+  'Planner Agent': RiLightbulbLine,
+  'Research Agent': RiSearchLine,
+  'Browser Agent': RiGlobalLine,
+  'Memory Agent': RiBrainLine,
+  'System Agent': HiComputerDesktop
+}
 
 const capabilities = [
   { label: 'THINK', icon: RiLightbulbLine, angle: 270 },
@@ -133,8 +157,26 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
   const [commandInput, setCommandInput] = useState('')
   const [voiceActive, setVoiceActive] = useState(false)
   const [pulsePhase, setPulsePhase] = useState(0)
+  const [isProcessing, setIsProcessing] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
+  // Dynamic state from backend
+  const [liveTasks, setLiveTasks] = useState<TaskItem[]>([])
+  const [liveAgents, setLiveAgents] = useState<AgentStatus[]>([
+    { name: 'Planner Agent', status: 'IDLE', desc: 'Waiting for instructions...' },
+    { name: 'Research Agent', status: 'IDLE', desc: 'Standing by...' },
+    { name: 'Browser Agent', status: 'IDLE', desc: 'Ready to browse...' },
+    { name: 'Memory Agent', status: 'IDLE', desc: 'Monitoring context...' },
+    { name: 'System Agent', status: 'ACTIVE', desc: 'Monitoring system health...' }
+  ])
+  const [memoryItems, setMemoryItems] = useState<MemoryItem[]>([])
+  const [commandError, setCommandError] = useState<string | null>(null)
+
+  // Voice recognition refs
+  const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const synthRef = useRef<SpeechSynthesisUtterance | null>(null)
+
+  // System stats polling
   useEffect(() => {
     const timer = setInterval(() => {
       setTime(new Date())
@@ -144,6 +186,7 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
     return () => clearInterval(timer)
   }, [])
 
+  // Chat history polling
   useEffect(() => {
     const fetchHistory = async () => {
       const history = await getHistory()
@@ -152,6 +195,38 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
     fetchHistory()
     const interval = setInterval(fetchHistory, 3000)
     return () => clearInterval(interval)
+  }, [])
+
+  // Task & agent polling from backend
+  useEffect(() => {
+    const fetchState = async () => {
+      try {
+        const [tasks, agents, memories] = await Promise.all([
+          window.electron.ipcRenderer.invoke('get-tasks'),
+          window.electron.ipcRenderer.invoke('get-agent-statuses'),
+          window.electron.ipcRenderer.invoke('get-memory-items')
+        ])
+        if (Array.isArray(tasks)) setLiveTasks(tasks)
+        if (Array.isArray(agents)) setLiveAgents(agents)
+        if (Array.isArray(memories)) setMemoryItems(memories)
+      } catch { /* handlers may not be ready yet */ }
+    }
+    fetchState()
+    const interval = setInterval(fetchState, 2000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Listen for real-time task/agent updates from backend
+  useEffect(() => {
+    const ipc = window.electron.ipcRenderer
+    const onTaskUpdate = (_e: unknown, data: TaskItem[]) => { if (Array.isArray(data)) setLiveTasks(data) }
+    const onAgentUpdate = (_e: unknown, data: AgentStatus[]) => { if (Array.isArray(data)) setLiveAgents(data) }
+    const unsubTask = ipc.on('task-update', onTaskUpdate)
+    const unsubAgent = ipc.on('agent-update', onAgentUpdate)
+    return () => {
+      unsubTask()
+      unsubAgent()
+    }
   }, [])
 
   useEffect(() => {
@@ -170,23 +245,143 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
   const diskVal = 62
   const gpuVal = 21
 
-  const [commandError, setCommandError] = useState<string | null>(null)
-
-  const handleCommand = useCallback(async () => {
-    if (!commandInput.trim()) return
-    const cmd = commandInput.trim()
-    setCommandInput('')
+  // Execute command via smart router
+  const executeCommand = useCallback(async (input: string) => {
+    if (!input.trim()) return
     setCommandError(null)
+    setIsProcessing(true)
     try {
-      const result = await window.electron.ipcRenderer.invoke('send-to-gemini', cmd)
+      const result = await window.electron.ipcRenderer.invoke('execute-command', input.trim())
       if (result && !result.success) {
         setCommandError(result.error || 'Unknown error from AI core')
       }
     } catch (err) {
       setCommandError(err instanceof Error ? err.message : 'Neural link disrupted. Retry your command.')
+    } finally {
+      setIsProcessing(false)
     }
-  }, [commandInput])
+  }, [])
 
+  const handleCommand = useCallback(async () => {
+    if (!commandInput.trim() || isProcessing) return
+    const cmd = commandInput.trim()
+    setCommandInput('')
+    await executeCommand(cmd)
+  }, [commandInput, isProcessing, executeCommand])
+
+  // Quick action handlers — each triggers a real command
+  const handleQuickAction = useCallback((action: string) => {
+    switch (action) {
+      case 'Open Terminal':
+        executeCommand('open terminal')
+        break
+      case 'System Info':
+        executeCommand('system info')
+        break
+      case 'Search Files':
+        setCommandInput('find files ')
+        break
+      case 'Take Screenshot':
+        executeCommand('take screenshot')
+        break
+      case 'New Task':
+        setCommandInput('')
+        break
+    }
+  }, [executeCommand])
+
+  // Quick action pills — real commands
+  const handlePill = useCallback((pill: string) => {
+    executeCommand(pill)
+  }, [executeCommand])
+
+  // Sidebar nav actions — focus on section or trigger command
+  const handleNavClick = useCallback((id: string) => {
+    if (id === 'settings' && onOpenSettings) {
+      onOpenSettings()
+    } else if (id === 'system') {
+      executeCommand('system info')
+      setActiveNav(id)
+    } else if (id === 'memory') {
+      executeCommand('recall memory')
+      setActiveNav(id)
+    } else if (id === 'files') {
+      executeCommand('list files')
+      setActiveNav(id)
+    } else if (id === 'browser') {
+      executeCommand('open chrome')
+      setActiveNav(id)
+    } else {
+      setActiveNav(id)
+    }
+  }, [executeCommand, onOpenSettings])
+
+  // Voice: Web Speech API
+  const toggleVoice = useCallback(() => {
+    if (voiceActive) {
+      // Stop listening
+      if (recognitionRef.current) {
+        recognitionRef.current.stop()
+        recognitionRef.current = null
+      }
+      setVoiceActive(false)
+      return
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SpeechRecognition) {
+      setCommandError('Speech recognition is not supported in this browser.')
+      return
+    }
+
+    const recognition = new SpeechRecognition()
+    recognition.continuous = true
+    recognition.interimResults = false
+    recognition.lang = 'en-US'
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const last = event.results[event.results.length - 1]
+      if (last.isFinal) {
+        const transcript = last[0].transcript.trim()
+        if (transcript) {
+          setCommandInput(transcript)
+          executeCommand(transcript)
+        }
+      }
+    }
+
+    recognition.onerror = () => {
+      setVoiceActive(false)
+      recognitionRef.current = null
+    }
+
+    recognition.onend = () => {
+      setVoiceActive(false)
+      recognitionRef.current = null
+    }
+
+    recognition.start()
+    recognitionRef.current = recognition
+    setVoiceActive(true)
+  }, [voiceActive, executeCommand])
+
+  // Text-to-speech for AI responses
+  useEffect(() => {
+    const ipc = window.electron.ipcRenderer
+    const onGeminiResponse = (_e: unknown, text: string) => {
+      if (voiceActive && text && window.speechSynthesis) {
+        const utterance = new SpeechSynthesisUtterance(text.slice(0, 500))
+        utterance.rate = 1.0
+        utterance.pitch = 1.0
+        synthRef.current = utterance
+        window.speechSynthesis.speak(utterance)
+      }
+    }
+    const unsub = ipc.on('gemini-response', onGeminiResponse)
+    return () => { unsub() }
+  }, [voiceActive])
+
+  // Console messages from real chat history
   const consoleMessages = chatHistory.length > 0
     ? chatHistory.map((msg) => ({
         sender: msg.role === 'user' ? 'YOU' : 'SADIYA',
@@ -195,19 +390,8 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
         type: msg.role === 'user' ? 'user' : 'ai'
       }))
     : [
-        { sender: 'SADIYA', text: 'Hello! How can I assist you today?', time: '11:45 PM', type: 'ai' },
-        { sender: 'YOU', text: 'Open Chrome and search latest AI news', time: '11:45 PM', type: 'user' },
-        { sender: 'SADIYA', text: 'Opening Chrome and searching for latest AI news...', time: '11:46 PM', type: 'ai' },
-        { sender: 'TASK COMPLETED', text: 'Found 10+ recent articles. Would you like a summary?', time: '11:47 PM', type: 'task' }
+        { sender: 'SADIYA', text: 'Hello! I\'m your AI OS companion. Type a command or ask me anything. Try: "open chrome", "search files test", "system info", "research AI trends", or just chat.', time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }), type: 'ai' }
       ]
-
-  const tasks = [
-    { time: '11:47', icon: RiSearchLine, text: 'Research latest AI news', progress: 80 },
-    { time: '11:46', icon: RiGlobalLine, text: 'Open Chrome Browser', done: true },
-    { time: '11:45', icon: HiComputerDesktop, text: 'System Information', done: true },
-    { time: '11:44', icon: RiSearchLine, text: 'Search PDF files in Home', done: true },
-    { time: '11:43', icon: RiBrainLine, text: 'Memory Recall', done: true }
-  ]
 
   const greeting = (() => {
     const h = time.getHours()
@@ -278,13 +462,7 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
           {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => {
-                if (item.id === 'settings' && onOpenSettings) {
-                  onOpenSettings()
-                } else {
-                  setActiveNav(item.id)
-                }
-              }}
+              onClick={() => handleNavClick(item.id)}
               className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-[12px] font-bold tracking-[0.15em] transition-all duration-300 cursor-pointer group ${
                 activeNav === item.id
                   ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/10 text-cyan-400 border border-cyan-500/25 shadow-[0_0_25px_rgba(6,182,212,0.12)]'
@@ -312,7 +490,7 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
 
             {/* Mic Button */}
             <button
-              onClick={() => setVoiceActive(!voiceActive)}
+              onClick={toggleVoice}
               className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-500 cursor-pointer relative flex-shrink-0 ${
                 voiceActive
                   ? 'bg-gradient-to-br from-cyan-500 to-blue-600 shadow-[0_0_40px_rgba(6,182,212,0.5)]'
@@ -423,12 +601,18 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
 
               {/* Quick action pills */}
               <div className="flex gap-3 mt-6 flex-wrap justify-center">
-                {["What's on my schedule?", 'Analyze this for me', 'Open research mode', 'System status'].map((q) => (
+                {[
+                  { label: 'System Status', cmd: 'system info' },
+                  { label: 'Research AI Trends', cmd: 'research latest AI trends 2025' },
+                  { label: 'My Memories', cmd: 'recall memory' },
+                  { label: 'Search Files', cmd: 'find files documents' }
+                ].map((q) => (
                   <button
-                    key={q}
+                    key={q.label}
+                    onClick={() => handlePill(q.cmd)}
                     className="px-5 py-2.5 text-[11px] font-semibold tracking-wider bg-white/[0.04] border border-white/10 rounded-xl text-zinc-400 hover:text-cyan-400 hover:border-cyan-500/30 hover:bg-cyan-500/[0.08] hover:shadow-[0_0_20px_rgba(6,182,212,0.1)] transition-all duration-300 cursor-pointer"
                   >
-                    {q}
+                    {q.label}
                   </button>
                 ))}
               </div>
@@ -555,25 +739,43 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
                   </div>
                 </div>
                 <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3 scrollbar-thin">
-                  {tasks.map((task, i) => (
-                    <div key={i} className="flex items-center gap-3 group">
-                      <span className="text-[10px] text-zinc-600 font-mono w-10 flex-shrink-0">{task.time}</span>
-                      <div className="w-9 h-9 rounded-xl bg-white/[0.05] border border-white/5 flex items-center justify-center flex-shrink-0 group-hover:border-cyan-500/20 transition-colors">
-                        <task.icon className="text-zinc-400 text-base group-hover:text-cyan-400 transition-colors" />
-                      </div>
-                      <span className="text-[12px] text-zinc-300 flex-1 truncate">{task.text}</span>
-                      {task.done ? (
-                        <div className="flex items-center gap-1.5 bg-green-500/10 px-2.5 py-1 rounded-full border border-green-500/15">
-                          <RiCheckDoubleLine className="text-green-400 text-sm" />
-                          <span className="text-[9px] text-green-400 font-mono font-semibold">Completed</span>
+                  {liveTasks.length > 0 ? liveTasks.slice(0, 10).map((task) => {
+                    const TaskIcon = TASK_ICON_MAP[task.agent] || RiTaskLine
+                    const taskTime = new Date(task.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+                    return (
+                      <div key={task.id} className="flex items-center gap-3 group">
+                        <span className="text-[10px] text-zinc-600 font-mono w-10 flex-shrink-0">{taskTime}</span>
+                        <div className={`w-9 h-9 rounded-xl bg-white/[0.05] border flex items-center justify-center flex-shrink-0 transition-colors ${
+                          task.status === 'running' ? 'border-cyan-500/30' : 'border-white/5 group-hover:border-cyan-500/20'
+                        }`}>
+                          {task.status === 'running'
+                            ? <RiLoader4Line className="text-cyan-400 text-base animate-spin" />
+                            : <TaskIcon className={`text-base transition-colors ${task.status === 'failed' ? 'text-red-400' : 'text-zinc-400 group-hover:text-cyan-400'}`} />
+                          }
                         </div>
-                      ) : (
-                        <span className="text-[10px] text-cyan-400 font-mono font-bold bg-cyan-500/10 px-2.5 py-1 rounded-full border border-cyan-500/15">
-                          {task.progress}%
-                        </span>
-                      )}
+                        <span className="text-[12px] text-zinc-300 flex-1 truncate">{task.text}</span>
+                        {task.status === 'completed' ? (
+                          <div className="flex items-center gap-1.5 bg-green-500/10 px-2.5 py-1 rounded-full border border-green-500/15">
+                            <RiCheckDoubleLine className="text-green-400 text-sm" />
+                            <span className="text-[9px] text-green-400 font-mono font-semibold">Done</span>
+                          </div>
+                        ) : task.status === 'failed' ? (
+                          <div className="flex items-center gap-1.5 bg-red-500/10 px-2.5 py-1 rounded-full border border-red-500/15">
+                            <RiCloseCircleLine className="text-red-400 text-sm" />
+                            <span className="text-[9px] text-red-400 font-mono font-semibold">Failed</span>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-cyan-400 font-mono font-bold bg-cyan-500/10 px-2.5 py-1 rounded-full border border-cyan-500/15 animate-pulse">
+                            Running
+                          </span>
+                        )}
+                      </div>
+                    )
+                  }) : (
+                    <div className="flex items-center justify-center h-full text-zinc-600 text-[11px] font-mono">
+                      No tasks yet. Type a command to get started.
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>
@@ -609,32 +811,36 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
               <div className="flex items-center justify-between mb-5">
                 <span className="text-[12px] font-bold tracking-[0.2em] text-white">ACTIVE AGENTS</span>
                 <div className="w-8 h-8 rounded-full bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
-                  <span className="text-[11px] font-bold text-cyan-400">{agents.filter((a) => a.status === 'ACTIVE').length}</span>
+                  <span className="text-[11px] font-bold text-cyan-400">{liveAgents.filter((a) => a.status === 'ACTIVE').length}</span>
                 </div>
               </div>
               <div className="space-y-3.5">
-                {agents.map((agent, i) => (
-                  <div key={i} className="flex items-center gap-3.5 group">
-                    <div
-                      className={`w-11 h-11 rounded-xl bg-gradient-to-br ${agent.color} flex items-center justify-center shadow-lg flex-shrink-0 opacity-90 group-hover:opacity-100 transition-opacity`}
-                    >
-                      <agent.icon className="text-white text-lg" />
+                {liveAgents.map((agent, i) => {
+                  const meta = AGENT_META[agent.name] || { color: 'from-gray-500 to-gray-600', icon: RiRobot2Line }
+                  const AgentIcon = meta.icon
+                  return (
+                    <div key={i} className="flex items-center gap-3.5 group">
+                      <div
+                        className={`w-11 h-11 rounded-xl bg-gradient-to-br ${meta.color} flex items-center justify-center shadow-lg flex-shrink-0 opacity-90 group-hover:opacity-100 transition-opacity`}
+                      >
+                        <AgentIcon className="text-white text-lg" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[12px] font-bold text-white block">{agent.name}</span>
+                        <span className="text-[10px] text-zinc-500 block truncate">{agent.desc}</span>
+                      </div>
+                      <span
+                        className={`text-[9px] font-bold tracking-wider px-3 py-1.5 rounded-full ${
+                          agent.status === 'ACTIVE'
+                            ? 'bg-green-500/15 text-green-400 border border-green-500/20 shadow-[0_0_10px_rgba(74,222,128,0.1)]'
+                            : 'bg-zinc-700/30 text-zinc-500 border border-zinc-600/20'
+                        }`}
+                      >
+                        {agent.status}
+                      </span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <span className="text-[12px] font-bold text-white block">{agent.name}</span>
-                      <span className="text-[10px] text-zinc-500 block truncate">{agent.desc}</span>
-                    </div>
-                    <span
-                      className={`text-[9px] font-bold tracking-wider px-3 py-1.5 rounded-full ${
-                        agent.status === 'ACTIVE'
-                          ? 'bg-green-500/15 text-green-400 border border-green-500/20 shadow-[0_0_10px_rgba(74,222,128,0.1)]'
-                          : 'bg-zinc-700/30 text-zinc-500 border border-zinc-600/20'
-                      }`}
-                    >
-                      {agent.status}
-                    </span>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
 
@@ -647,15 +853,24 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
                 </span>
               </div>
               <div className="space-y-4">
-                {memoryItems.map((item, i) => (
-                  <div key={i} className="flex items-center gap-3.5 group">
-                    <div className="w-9 h-9 rounded-lg bg-white/[0.04] border border-white/5 flex items-center justify-center flex-shrink-0 group-hover:border-cyan-500/20 transition-colors">
-                      <item.icon className={`text-base ${item.color}`} />
+                {memoryItems.length > 0 ? memoryItems.map((item, i) => {
+                  const daysDiff = Math.floor((Date.now() - new Date(item.timestamp).getTime()) / 86400000)
+                  const timeLabel = daysDiff === 0 ? 'Today' : daysDiff === 1 ? 'Yesterday' : `${daysDiff}d ago`
+                  const colors = ['text-purple-400', 'text-cyan-400', 'text-blue-400', 'text-green-400', 'text-amber-400']
+                  return (
+                    <div key={i} className="flex items-center gap-3.5 group">
+                      <div className="w-9 h-9 rounded-lg bg-white/[0.04] border border-white/5 flex items-center justify-center flex-shrink-0 group-hover:border-cyan-500/20 transition-colors">
+                        <RiBrainLine className={`text-base ${colors[i % colors.length]}`} />
+                      </div>
+                      <span className="text-[12px] text-zinc-300 flex-1 truncate">{item.fact}</span>
+                      <span className="text-[9px] text-zinc-600 font-mono flex-shrink-0">{timeLabel}</span>
                     </div>
-                    <span className="text-[12px] text-zinc-300 flex-1 truncate">{item.text}</span>
-                    <span className="text-[9px] text-zinc-600 font-mono flex-shrink-0">{item.time}</span>
+                  )
+                }) : (
+                  <div className="text-zinc-600 text-[11px] font-mono text-center py-4">
+                    No memories stored. Try: &quot;remember I like dark mode&quot;
                   </div>
-                ))}
+                )}
               </div>
 
               {/* SADIYA Status */}
@@ -695,14 +910,23 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
               value={commandInput}
               onChange={(e) => setCommandInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleCommand()}
-              placeholder="Type a command or ask anything..."
+              placeholder={isProcessing ? 'Processing...' : 'Type a command or ask anything... (try: open chrome, search AI news, system info)'}
               className="flex-1 bg-transparent text-sm text-white placeholder-zinc-600 outline-none font-mono"
+              disabled={isProcessing}
             />
             <button
               onClick={handleCommand}
-              className="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-[0_0_25px_rgba(6,182,212,0.3)] hover:shadow-[0_0_35px_rgba(6,182,212,0.5)] transition-all cursor-pointer"
+              disabled={isProcessing}
+              className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+                isProcessing
+                  ? 'bg-zinc-700 shadow-none'
+                  : 'bg-gradient-to-br from-cyan-500 to-blue-600 shadow-[0_0_25px_rgba(6,182,212,0.3)] hover:shadow-[0_0_35px_rgba(6,182,212,0.5)]'
+              }`}
             >
-              <RiSendPlane2Line className="text-white text-lg" />
+              {isProcessing
+                ? <RiLoader4Line className="text-zinc-400 text-lg animate-spin" />
+                : <RiSendPlane2Line className="text-white text-lg" />
+              }
             </button>
           </div>
 
@@ -717,6 +941,7 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
             ].map((action) => (
               <button
                 key={action.label}
+                onClick={() => handleQuickAction(action.label)}
                 className="flex items-center gap-2 text-[10px] text-zinc-600 hover:text-cyan-400 transition-all duration-300 cursor-pointer font-mono tracking-wider group"
               >
                 <action.icon className="text-sm group-hover:drop-shadow-[0_0_6px_rgba(6,182,212,0.4)]" />
