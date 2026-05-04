@@ -1,17 +1,10 @@
 import { IpcMain, App, BrowserWindow, shell, desktopCapturer } from 'electron'
 import { loadSecureVault } from '../security/vault'
 import { chatWithAI, getActiveProvider } from '../services/ai-providers'
+import { withChatLock, readChatHistory, writeChatHistory } from './chat-lock'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
-
-// Chat history concurrency lock — shared with send-to-gemini handler pattern
-let chatLock: Promise<unknown> = Promise.resolve()
-function withChatLock<T>(fn: () => Promise<T>): Promise<T> {
-  const next = chatLock.then(fn, fn)
-  chatLock = next.catch(() => {})
-  return next
-}
 
 // Stealth plugin registration guard — only register once
 let stealthRegistered = false
@@ -583,26 +576,20 @@ export default function registerCommandRouter({
           return await withChatLock(async () => {
             const chatDir = path.resolve(app.getPath('userData'), 'Chat')
             const chatFile = path.join(chatDir, 'iris_memory.json')
-            if (!fs.existsSync(chatDir)) fs.mkdirSync(chatDir, { recursive: true })
 
-            let history: { role: string; content: string; timestamp: string }[] = []
-            if (fs.existsSync(chatFile)) {
-              try { history = JSON.parse(fs.readFileSync(chatFile, 'utf-8')) || [] } catch { history = [] }
-            }
-
+            const history = readChatHistory(chatDir, chatFile)
             history.push({ role: 'user', content: intent.prompt, timestamp: new Date().toISOString() })
-            const trimmedHist = history.length > 30 ? history.slice(-30) : history
-            fs.writeFileSync(chatFile, JSON.stringify(trimmedHist, null, 2))
+            writeChatHistory(chatDir, chatFile, history)
 
-            const result = await chatWithAI(intent.prompt, trimmedHist, vault)
+            const result = await chatWithAI(intent.prompt, history, vault)
 
             if (!result.success) {
               // Rollback orphaned user message
               try {
-                const current = JSON.parse(fs.readFileSync(chatFile, 'utf-8')) || []
+                const current = readChatHistory(chatDir, chatFile)
                 if (current.length > 0 && current[current.length - 1].role === 'user') {
                   current.pop()
-                  fs.writeFileSync(chatFile, JSON.stringify(current, null, 2))
+                  writeChatHistory(chatDir, chatFile, current)
                 }
               } catch { /* best-effort rollback */ }
 
@@ -615,14 +602,9 @@ export default function registerCommandRouter({
 
             const text = result.text ?? ''
 
-            // Re-read to avoid overwriting concurrent writes
-            let current: { role: string; content: string; timestamp: string }[] = []
-            if (fs.existsSync(chatFile)) {
-              try { current = JSON.parse(fs.readFileSync(chatFile, 'utf-8')) || [] } catch { current = [] }
-            }
+            const current = readChatHistory(chatDir, chatFile)
             current.push({ role: 'model', content: text, timestamp: new Date().toISOString() })
-            const finalTrimmed = current.length > 30 ? current.slice(-30) : current
-            fs.writeFileSync(chatFile, JSON.stringify(finalTrimmed, null, 2))
+            writeChatHistory(chatDir, chatFile, current)
 
             if (win && !win.isDestroyed()) win.webContents.send('gemini-response', text)
 

@@ -1,6 +1,6 @@
-import fs from 'fs'
 import path from 'path'
 import { IpcMain, App } from 'electron'
+import { withChatLock, readChatHistory, writeChatHistory } from './chat-lock'
 
 export default function registerIpcHandlers({ ipcMain, app }: { ipcMain: IpcMain; app: App }) {
   const CHAT_DIR = path.resolve(app.getPath('userData'), 'Chat')
@@ -10,42 +10,36 @@ export default function registerIpcHandlers({ ipcMain, app }: { ipcMain: IpcMain
   ipcMain.removeHandler('get-history')
 
   ipcMain.handle('add-message', async (_event, msg) => {
-    try {
-      if (!fs.existsSync(CHAT_DIR)) fs.mkdirSync(CHAT_DIR, { recursive: true })
+    return withChatLock(async () => {
+      try {
+        const history = readChatHistory(CHAT_DIR, FILE_PATH)
 
-      let history: { role: string; content: string; timestamp: string }[] = []
-      if (fs.existsSync(FILE_PATH)) {
-        const data = fs.readFileSync(FILE_PATH, 'utf-8')
-        history = data ? JSON.parse(data) : []
+        const newEntry: { role: string; content: string; timestamp: string } = {
+          role: msg.role,
+          content: msg.parts[0].text,
+          timestamp: new Date().toISOString()
+        }
+        history.push(newEntry)
+
+        writeChatHistory(CHAT_DIR, FILE_PATH, history)
+        return true
+      } catch {
+        return false
       }
-
-      const newEntry: { role: string; content: string; timestamp: string } = {
-        role: msg.role,
-        content: msg.parts[0].text,
-        timestamp: new Date().toISOString()
-      }
-      history.push(newEntry)
-
-      if (history.length > 30) history = history.slice(-30)
-
-      fs.writeFileSync(FILE_PATH, JSON.stringify(history, null, 2))
-      return true
-    } catch (err) {
-      return false
-    }
+    })
   })
 
   ipcMain.handle('get-history', async () => {
-    try {
-      if (fs.existsSync(FILE_PATH)) {
-        const data = fs.readFileSync(FILE_PATH, 'utf-8')
-        const raw = JSON.parse(data)
-        return raw.map((m: any) => ({
+    return withChatLock(async () => {
+      try {
+        const history = readChatHistory(CHAT_DIR, FILE_PATH)
+        return history.map((m) => ({
           role: m.role === 'iris' ? 'model' : m.role,
           parts: [{ text: m.content }]
         }))
+      } catch {
+        return []
       }
-    } catch (err) {}
-    return []
+    })
   })
 }

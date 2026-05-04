@@ -221,11 +221,11 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
     const ipc = window.electron.ipcRenderer
     const onTaskUpdate = (_e: unknown, data: TaskItem[]) => { if (Array.isArray(data)) setLiveTasks(data) }
     const onAgentUpdate = (_e: unknown, data: AgentStatus[]) => { if (Array.isArray(data)) setLiveAgents(data) }
-    ipc.on('task-update', onTaskUpdate)
-    ipc.on('agent-update', onAgentUpdate)
+    const unsubTask = ipc.on('task-update', onTaskUpdate)
+    const unsubAgent = ipc.on('agent-update', onAgentUpdate)
     return () => {
-      ipc.removeListener('task-update', onTaskUpdate)
-      ipc.removeListener('agent-update', onAgentUpdate)
+      unsubTask()
+      unsubAgent()
     }
   }, [])
 
@@ -377,8 +377,8 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
         window.speechSynthesis.speak(utterance)
       }
     }
-    ipc.on('gemini-response', onGeminiResponse)
-    return () => { ipc.removeListener('gemini-response', onGeminiResponse) }
+    const unsub = ipc.on('gemini-response', onGeminiResponse)
+    return () => { unsub() }
   }, [voiceActive])
 
   // Console messages from real chat history
