@@ -19,24 +19,24 @@ function encryptValue(value: string): string {
   return Buffer.from(value).toString('base64')
 }
 
+const BASE64_RE = /^[A-Za-z0-9+/]*={0,2}$/
+
+function isValidBase64(str: string): boolean {
+  return str.length > 0 && str.length % 4 === 0 && BASE64_RE.test(str)
+}
+
 function decryptValue(encoded: string): string {
+  if (!isValidBase64(encoded)) {
+    return encoded
+  }
   if (safeStorage.isEncryptionAvailable()) {
     try {
       return safeStorage.decryptString(Buffer.from(encoded, 'base64'))
     } catch {
-      // Fallback: value may have been stored as plain base64 before safeStorage was available
-      try {
-        return Buffer.from(encoded, 'base64').toString('utf-8')
-      } catch {
-        return encoded
-      }
+      return Buffer.from(encoded, 'base64').toString('utf-8')
     }
   }
-  try {
-    return Buffer.from(encoded, 'base64').toString('utf-8')
-  } catch {
-    return encoded
-  }
+  return Buffer.from(encoded, 'base64').toString('utf-8')
 }
 
 export function loadSecureVault(): SecureVault {
