@@ -5,6 +5,17 @@ import fs from 'fs'
 import path from 'path'
 import os from 'os'
 
+// Chat history concurrency lock — shared with send-to-gemini handler pattern
+let chatLock: Promise<unknown> = Promise.resolve()
+function withChatLock<T>(fn: () => Promise<T>): Promise<T> {
+  const next = chatLock.then(fn, fn)
+  chatLock = next.catch(() => {})
+  return next
+}
+
+// Stealth plugin registration guard — only register once
+let stealthRegistered = false
+
 interface Task {
   id: string
   text: string
@@ -88,13 +99,13 @@ function parseCommand(input: string): CommandIntent {
     return { type: 'open_app', app: target }
   }
 
+  // File search — check BEFORE web search to avoid 'search files X' being caught by web search
+  const searchFileMatch = trimmed.match(/^(?:find files?|search files?|locate)\s+(.+)$/i)
+  if (searchFileMatch) return { type: 'search_files', query: searchFileMatch[1] }
+
   // Web search
   const searchWebMatch = trimmed.match(/^(?:search|google|look up|find online|web search)\s+(.+)$/i)
   if (searchWebMatch) return { type: 'search_web', query: searchWebMatch[1] }
-
-  // File search
-  const searchFileMatch = trimmed.match(/^(?:find files?|search files?|locate)\s+(.+)$/i)
-  if (searchFileMatch) return { type: 'search_files', query: searchFileMatch[1] }
 
   // System info — no capture groups, safe to use lower
   if (lower.match(/^(?:system (?:info|status|stats|health)|show system|cpu|ram|memory usage|check system)$/))
@@ -230,9 +241,12 @@ export default function registerCommandRouter({
         try {
           // Use existing web-search IPC handler via puppeteer
           const puppeteer = await import('puppeteer-extra')
-          const StealthPlugin = await import('puppeteer-extra-plugin-stealth')
           const cheerio = await import('cheerio')
-          puppeteer.default.use(StealthPlugin.default())
+          if (!stealthRegistered) {
+            const StealthPlugin = await import('puppeteer-extra-plugin-stealth')
+            puppeteer.default.use(StealthPlugin.default())
+            stealthRegistered = true
+          }
 
           const browser = await puppeteer.default.launch({
             headless: true,
@@ -566,56 +580,58 @@ export default function registerCommandRouter({
             return { success: false, error: 'No AI API key configured. Go to Settings and add at least one (Gemini, Groq, HuggingFace, or NVIDIA).' }
           }
 
-          const chatDir = path.resolve(app.getPath('userData'), 'Chat')
-          const chatFile = path.join(chatDir, 'iris_memory.json')
-          if (!fs.existsSync(chatDir)) fs.mkdirSync(chatDir, { recursive: true })
+          return await withChatLock(async () => {
+            const chatDir = path.resolve(app.getPath('userData'), 'Chat')
+            const chatFile = path.join(chatDir, 'iris_memory.json')
+            if (!fs.existsSync(chatDir)) fs.mkdirSync(chatDir, { recursive: true })
 
-          let history: { role: string; content: string; timestamp: string }[] = []
-          if (fs.existsSync(chatFile)) {
-            try { history = JSON.parse(fs.readFileSync(chatFile, 'utf-8')) || [] } catch { history = [] }
-          }
+            let history: { role: string; content: string; timestamp: string }[] = []
+            if (fs.existsSync(chatFile)) {
+              try { history = JSON.parse(fs.readFileSync(chatFile, 'utf-8')) || [] } catch { history = [] }
+            }
 
-          history.push({ role: 'user', content: intent.prompt, timestamp: new Date().toISOString() })
-          const trimmed = history.length > 30 ? history.slice(-30) : history
-          fs.writeFileSync(chatFile, JSON.stringify(trimmed, null, 2))
+            history.push({ role: 'user', content: intent.prompt, timestamp: new Date().toISOString() })
+            const trimmedHist = history.length > 30 ? history.slice(-30) : history
+            fs.writeFileSync(chatFile, JSON.stringify(trimmedHist, null, 2))
 
-          const result = await chatWithAI(intent.prompt, trimmed, vault)
+            const result = await chatWithAI(intent.prompt, trimmedHist, vault)
 
-          if (!result.success) {
-            // Rollback orphaned user message
-            try {
-              const current = JSON.parse(fs.readFileSync(chatFile, 'utf-8')) || []
-              if (current.length > 0 && current[current.length - 1].role === 'user') {
-                current.pop()
-                fs.writeFileSync(chatFile, JSON.stringify(current, null, 2))
-              }
-            } catch { /* best-effort rollback */ }
+            if (!result.success) {
+              // Rollback orphaned user message
+              try {
+                const current = JSON.parse(fs.readFileSync(chatFile, 'utf-8')) || []
+                if (current.length > 0 && current[current.length - 1].role === 'user') {
+                  current.pop()
+                  fs.writeFileSync(chatFile, JSON.stringify(current, null, 2))
+                }
+              } catch { /* best-effort rollback */ }
 
-            completeTask(task.id, 'failed', result.error || 'Unknown error')
+              completeTask(task.id, 'failed', result.error || 'Unknown error')
+              setAgent('Planner Agent', 'IDLE', 'Waiting for instructions...')
+              notifyRenderer(win, 'task-update', tasks)
+              notifyRenderer(win, 'agent-update', agentStatuses)
+              return result
+            }
+
+            const text = result.text ?? ''
+
+            // Re-read to avoid overwriting concurrent writes
+            let current: { role: string; content: string; timestamp: string }[] = []
+            if (fs.existsSync(chatFile)) {
+              try { current = JSON.parse(fs.readFileSync(chatFile, 'utf-8')) || [] } catch { current = [] }
+            }
+            current.push({ role: 'model', content: text, timestamp: new Date().toISOString() })
+            const finalTrimmed = current.length > 30 ? current.slice(-30) : current
+            fs.writeFileSync(chatFile, JSON.stringify(finalTrimmed, null, 2))
+
+            if (win && !win.isDestroyed()) win.webContents.send('gemini-response', text)
+
+            completeTask(task.id, 'completed', `[${result.provider}] ${text.slice(0, 100)}`)
             setAgent('Planner Agent', 'IDLE', 'Waiting for instructions...')
             notifyRenderer(win, 'task-update', tasks)
             notifyRenderer(win, 'agent-update', agentStatuses)
-            return result
-          }
-
-          const text = result.text ?? ''
-
-          // Re-read to avoid overwriting concurrent writes
-          let current: { role: string; content: string; timestamp: string }[] = []
-          if (fs.existsSync(chatFile)) {
-            try { current = JSON.parse(fs.readFileSync(chatFile, 'utf-8')) || [] } catch { current = [] }
-          }
-          current.push({ role: 'model', content: text, timestamp: new Date().toISOString() })
-          const finalTrimmed = current.length > 30 ? current.slice(-30) : current
-          fs.writeFileSync(chatFile, JSON.stringify(finalTrimmed, null, 2))
-
-          if (win && !win.isDestroyed()) win.webContents.send('gemini-response', text)
-
-          completeTask(task.id, 'completed', `[${result.provider}] ${text.slice(0, 100)}`)
-          setAgent('Planner Agent', 'IDLE', 'Waiting for instructions...')
-          notifyRenderer(win, 'task-update', tasks)
-          notifyRenderer(win, 'agent-update', agentStatuses)
-          return { success: true, text, provider: result.provider }
+            return { success: true, text, provider: result.provider }
+          })
         } catch (err) {
           // Rollback orphaned user message
           try {
