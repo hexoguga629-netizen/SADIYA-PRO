@@ -51,6 +51,7 @@ import registerPhantomKeyboard from './handlers/PhantomControl-handler'
 import registerSecurityVault from './security/Security'
 import registerLockSystem from './security/lock-system'
 import registerNotion from './services/notion-handler'
+import registerCommandRouter from './logic/command-router'
 import { autoUpdater } from 'electron-updater'
 
 app.commandLine.appendSwitch('use-fake-ui-for-media-stream')
@@ -371,6 +372,7 @@ app.whenReady().then(() => {
   registerFileScanner(ipcMain)
   registerSystemHandlers(ipcMain)
   registerIpcHandlers({ ipcMain, app })
+  registerCommandRouter({ ipcMain, app, getMainWindow: () => mainWindow })
 
   ipcMain.handle('get-screen-source', async () => {
     const sources = await desktopCapturer.getSources({ types: ['screen'] })
