@@ -615,18 +615,6 @@ export default function registerCommandRouter({
             return { success: true, text, provider: result.provider }
           })
         } catch (err) {
-          // Rollback orphaned user message
-          try {
-            const chatFile = path.join(app.getPath('userData'), 'Chat', 'iris_memory.json')
-            if (fs.existsSync(chatFile)) {
-              const current = JSON.parse(fs.readFileSync(chatFile, 'utf-8')) || []
-              if (current.length > 0 && current[current.length - 1].role === 'user') {
-                current.pop()
-                fs.writeFileSync(chatFile, JSON.stringify(current, null, 2))
-              }
-            }
-          } catch { /* best-effort rollback */ }
-
           completeTask(task.id, 'failed', String(err))
           setAgent('Planner Agent', 'IDLE', 'Waiting for instructions...')
           notifyRenderer(win, 'task-update', tasks)

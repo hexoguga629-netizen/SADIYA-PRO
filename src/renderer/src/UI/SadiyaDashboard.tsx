@@ -895,7 +895,7 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
               <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center flex-shrink-0">
                 <span className="text-red-400 text-sm font-bold">!</span>
               </div>
-              <p className="text-[12px] text-red-300 font-mono flex-1">{commandError}</p>
+              <p className="text-[12px] text-red-300 font-mono flex-1">{commandError.length > 150 ? commandError.slice(0, 150) + '…' : commandError}</p>
               <button
                 onClick={() => setCommandError(null)}
                 className="text-red-400/60 hover:text-red-300 text-lg cursor-pointer"

@@ -31,7 +31,9 @@ async function chatWithGemini(apiKey: string, prompt: string, history: { role: s
 
 async function chatWithGroq(apiKey: string, prompt: string, history: { role: string; content: string }[]): Promise<ChatResult> {
   const groq = new Groq({ apiKey })
-  const messages = history.slice(-10).map((m) => ({
+  const recentHistory = history.slice(-10)
+  const firstUserIdx = recentHistory.findIndex((m) => m.role !== 'model')
+  const messages = (firstUserIdx > 0 ? recentHistory.slice(firstUserIdx) : recentHistory).map((m) => ({
     role: (m.role === 'model' ? 'assistant' : 'user') as 'user' | 'assistant' | 'system',
     content: m.content
   }))
@@ -58,7 +60,9 @@ async function chatWithHuggingFace(apiKey: string, prompt: string, _history: { r
 }
 
 async function chatWithNvidia(apiKey: string, prompt: string, history: { role: string; content: string }[]): Promise<ChatResult> {
-  const messages = history.slice(-10).map((m) => ({
+  const recentHistory = history.slice(-10)
+  const firstUserIdx = recentHistory.findIndex((m) => m.role !== 'model')
+  const messages = (firstUserIdx > 0 ? recentHistory.slice(firstUserIdx) : recentHistory).map((m) => ({
     role: m.role === 'model' ? 'assistant' : 'user',
     content: m.content
   }))
@@ -137,7 +141,8 @@ export async function chatWithAI(
         return { ...result, provider: p }
       } catch { continue }
     }
-    return { success: false, error: `AI request failed (${active.provider}): ${String(err)}` }
+    const errMsg = String(err).slice(0, 150)
+    return { success: false, error: `All AI providers failed. Last error (${active.provider}): ${errMsg}` }
   }
 }
 
