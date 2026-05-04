@@ -147,6 +147,9 @@ export default function registerAIProviders({ ipcMain }: { ipcMain: IpcMain }) {
   ipcMain.handle('set-ai-provider', async (_e, { provider }: { provider: string }) => {
     return withVaultLock(async () => {
       try {
+        if (!PROVIDER_PRIORITY.includes(provider as ProviderName)) {
+          return { success: false, error: `Invalid provider: ${provider}` }
+        }
         const vault = loadSecureVault()
         vault.settings['ai-provider'] = provider
         saveSecureVault(vault)

@@ -74,14 +74,14 @@ type CommandIntent =
   | { type: 'ai_chat'; prompt: string }
 
 function parseCommand(input: string): CommandIntent {
-  const lower = input.toLowerCase().trim()
+  const trimmed = input.trim()
+  const lower = trimmed.toLowerCase()
 
-  // Open app commands
-  const openMatch = lower.match(/^(?:open|launch|start|run)\s+(.+)$/i)
+  // Open app commands — match original to preserve casing
+  const openMatch = trimmed.match(/^(?:open|launch|start|run)\s+(.+)$/i)
   if (openMatch) {
     const target = openMatch[1].trim()
-    // Check if it's a URL
-    if (target.match(/^https?:\/\//) || target.match(/\.(com|org|net|io|dev|ai)\b/)) {
+    if (target.match(/^https?:\/\//i) || target.match(/\.(com|org|net|io|dev|ai)\b/i)) {
       const url = target.startsWith('http') ? target : `https://${target}`
       return { type: 'open_url', url }
     }
@@ -89,35 +89,35 @@ function parseCommand(input: string): CommandIntent {
   }
 
   // Web search
-  const searchWebMatch = lower.match(/^(?:search|google|look up|find online|web search)\s+(.+)$/i)
+  const searchWebMatch = trimmed.match(/^(?:search|google|look up|find online|web search)\s+(.+)$/i)
   if (searchWebMatch) return { type: 'search_web', query: searchWebMatch[1] }
 
   // File search
-  const searchFileMatch = lower.match(/^(?:find files?|search files?|locate)\s+(.+)$/i)
+  const searchFileMatch = trimmed.match(/^(?:find files?|search files?|locate)\s+(.+)$/i)
   if (searchFileMatch) return { type: 'search_files', query: searchFileMatch[1] }
 
-  // System info
+  // System info — no capture groups, safe to use lower
   if (lower.match(/^(?:system (?:info|status|stats|health)|show system|cpu|ram|memory usage|check system)$/))
     return { type: 'system_info' }
 
-  // Screenshot
+  // Screenshot — no capture groups, safe to use lower
   if (lower.match(/^(?:take (?:a )?screenshot|screenshot|capture screen|screen capture|snap screen)$/))
     return { type: 'screenshot' }
 
   // Research
-  const researchMatch = lower.match(/^(?:research|deep research|analyze|investigate)\s+(.+)$/i)
+  const researchMatch = trimmed.match(/^(?:research|deep research|analyze|investigate)\s+(.+)$/i)
   if (researchMatch) return { type: 'research', query: researchMatch[1] }
 
-  // Memory save
-  const rememberMatch = lower.match(/^(?:remember|save to memory|memorize|note)\s+(.+)$/i)
+  // Memory save — preserve original casing for user data
+  const rememberMatch = trimmed.match(/^(?:remember|save to memory|memorize|note)\s+(.+)$/i)
   if (rememberMatch) return { type: 'remember', fact: rememberMatch[1] }
 
-  // Memory recall
+  // Memory recall — no capture groups, safe to use lower
   if (lower.match(/^(?:recall memory|show memory|what do you remember|memory bank|memories)$/))
     return { type: 'recall_memory' }
 
-  // List directory
-  const listMatch = lower.match(/^(?:list files|ls|dir|show files|show directory)(?:\s+(.+))?$/i)
+  // List directory — preserve path casing for case-sensitive filesystems
+  const listMatch = trimmed.match(/^(?:list files|ls|dir|show files|show directory)(?:\s+(.+))?$/i)
   if (listMatch) return { type: 'list_files', dir: listMatch[1] }
 
   // Default: send to AI
@@ -238,13 +238,17 @@ export default function registerCommandRouter({
             headless: true,
             args: ['--no-sandbox', '--disable-setuid-sandbox']
           })
-          const page = await browser.newPage()
-          await page.goto(`https://www.google.com/search?q=${encodeURIComponent(intent.query)}`, {
-            waitUntil: 'domcontentloaded',
-            timeout: 15000
-          })
-          const html = await page.content()
-          await browser.close()
+          let html: string
+          try {
+            const page = await browser.newPage()
+            await page.goto(`https://www.google.com/search?q=${encodeURIComponent(intent.query)}`, {
+              waitUntil: 'domcontentloaded',
+              timeout: 15000
+            })
+            html = await page.content()
+          } finally {
+            await browser.close()
+          }
 
           const $ = cheerio.load(html)
           const results: { title: string; link: string; snippet: string }[] = []
