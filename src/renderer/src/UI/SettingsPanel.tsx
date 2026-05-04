@@ -69,8 +69,19 @@ const providers: ApiProvider[] = [
     linkLabel: 'Create Token',
     placeholder: 'hf_...',
     color: '#ffbd45'
+  },
+  {
+    id: 'nvidia',
+    name: 'NVIDIA',
+    description: 'Access NVIDIA AI models via free API (Llama, Mistral, etc.)',
+    link: 'https://build.nvidia.com/explore/discover',
+    linkLabel: 'Get API Key',
+    placeholder: 'nvapi-...',
+    color: '#76b900'
   }
 ]
+
+const AI_PROVIDERS = ['gemini', 'groq', 'huggingface', 'nvidia'] as const
 
 export default function SettingsPanel({ onBack }: { onBack: () => void }) {
   const [keys, setKeys] = useState<Record<string, string>>({})
@@ -78,6 +89,7 @@ export default function SettingsPanel({ onBack }: { onBack: () => void }) {
   const [showKey, setShowKey] = useState<Record<string, boolean>>({})
   const [saving, setSaving] = useState<string | null>(null)
   const [saved, setSaved] = useState<string | null>(null)
+  const [activeProvider, setActiveProvider] = useState<string | null>(null)
 
   useEffect(() => {
     loadKeys()
@@ -96,6 +108,22 @@ export default function SettingsPanel({ onBack }: { onBack: () => void }) {
         }
       } catch {}
     }
+
+    try {
+      const providerResult = await electronAPI.invoke('get-ai-provider')
+      if (providerResult?.success && providerResult.provider) {
+        setActiveProvider(providerResult.provider)
+      }
+    } catch {}
+  }
+
+  const selectProvider = async (providerId: string) => {
+    const electronAPI = window.electron?.ipcRenderer
+    if (!electronAPI) return
+    try {
+      await electronAPI.invoke('set-ai-provider', { provider: providerId })
+      setActiveProvider(providerId)
+    } catch {}
   }
 
   const saveKey = async (providerId: string) => {
@@ -153,6 +181,36 @@ export default function SettingsPanel({ onBack }: { onBack: () => void }) {
             API Key Settings
           </h1>
           <p className="text-sm text-zinc-500 mt-1">Configure your API keys to enable all SADIYA features</p>
+        </div>
+      </div>
+
+      {/* Active AI Provider Selector */}
+      <div className={`${glassPanel} p-5 mb-6`}>
+        <h2 className="text-sm font-bold text-white mb-3 tracking-wider">ACTIVE AI PROVIDER</h2>
+        <p className="text-xs text-zinc-500 mb-4">Select which AI provider to use for chat and research. Only providers with saved API keys are selectable.</p>
+        <div className="flex gap-3 flex-wrap">
+          {AI_PROVIDERS.map((pid) => {
+            const prov = providers.find(p => p.id === pid)
+            if (!prov) return null
+            const hasKey = !!savedKeys[pid]
+            const isActive = activeProvider === pid
+            return (
+              <button
+                key={pid}
+                onClick={() => hasKey && selectProvider(pid)}
+                disabled={!hasKey}
+                className={`px-4 py-2.5 rounded-xl text-xs font-bold tracking-wider border transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.2)]'
+                    : hasKey
+                      ? 'bg-white/[0.04] border-white/10 text-zinc-300 hover:border-cyan-500/30 hover:text-cyan-400'
+                      : 'bg-white/[0.02] border-white/5 text-zinc-600 cursor-not-allowed'
+                }`}
+              >
+                {prov.name} {isActive && '(Active)'} {!hasKey && '(No Key)'}
+              </button>
+            )
+          })}
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 import { IpcMain, App, BrowserWindow, shell, desktopCapturer } from 'electron'
 import { loadSecureVault } from '../security/vault'
-import { GoogleGenAI } from '@google/genai'
+import { chatWithAI, getActiveProvider } from '../services/ai-providers'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
@@ -393,16 +393,16 @@ export default function registerCommandRouter({
 
         try {
           const vault = loadSecureVault()
-          const geminiKey = vault.apiKeys['gemini'] || ''
           const tavilyKey = vault.apiKeys['tavily'] || ''
+          const hasAI = !!getActiveProvider(vault)
 
-          if (!geminiKey && !tavilyKey) {
+          if (!hasAI && !tavilyKey) {
             completeTask(task.id, 'failed', 'No API keys configured')
             setAgent('Planner Agent', 'IDLE', 'Waiting for instructions...')
             setAgent('Research Agent', 'IDLE', 'Standing by...')
             notifyRenderer(win, 'task-update', tasks)
             notifyRenderer(win, 'agent-update', agentStatuses)
-            return { success: false, error: 'No Gemini or Tavily API key configured. Go to Settings to add one.' }
+            return { success: false, error: 'No AI API key configured. Go to Settings and add at least one (Gemini, Groq, HuggingFace, or NVIDIA).' }
           }
 
           let searchResults = ''
@@ -417,24 +417,21 @@ export default function registerCommandRouter({
             } catch { /* continue without tavily */ }
           }
 
-          if (geminiKey) {
-            const ai = new GoogleGenAI({ apiKey: geminiKey })
+          if (hasAI) {
             const prompt = searchResults
               ? `Based on these search results, provide a comprehensive analysis:\n\nQuery: ${intent.query}\n\nSearch Results:\n${searchResults}\n\nProvide a detailed, well-structured response.`
               : `Research and provide a comprehensive analysis on: ${intent.query}`
 
-            const response = await ai.models.generateContent({
-              model: 'gemini-2.0-flash',
-              contents: prompt
-            })
-            const text = response.text || 'No response generated'
+            const result = await chatWithAI(prompt, [{ role: 'user', content: prompt }], vault)
 
-            completeTask(task.id, 'completed', text.slice(0, 200) + '...')
-            setAgent('Planner Agent', 'IDLE', 'Waiting for instructions...')
-            setAgent('Research Agent', 'IDLE', 'Standing by...')
-            notifyRenderer(win, 'task-update', tasks)
-            notifyRenderer(win, 'agent-update', agentStatuses)
-            return { success: true, text }
+            if (result.success && result.text) {
+              completeTask(task.id, 'completed', result.text.slice(0, 200) + '...')
+              setAgent('Planner Agent', 'IDLE', 'Waiting for instructions...')
+              setAgent('Research Agent', 'IDLE', 'Standing by...')
+              notifyRenderer(win, 'task-update', tasks)
+              notifyRenderer(win, 'agent-update', agentStatuses)
+              return { success: true, text: result.text }
+            }
           }
 
           completeTask(task.id, 'completed', searchResults.slice(0, 200))
@@ -549,7 +546,6 @@ export default function registerCommandRouter({
       }
 
       case 'ai_chat': {
-        // Fall through to Gemini chat - use the existing send-to-gemini handler
         const task = addTask(`AI Chat: ${intent.prompt.slice(0, 50)}...`, 'Planner Agent')
         setAgent('Planner Agent', 'ACTIVE', 'Processing your request...')
         notifyRenderer(win, 'task-update', tasks)
@@ -557,16 +553,15 @@ export default function registerCommandRouter({
 
         try {
           const vault = loadSecureVault()
-          const geminiKey = vault.apiKeys['gemini'] || ''
-          if (!geminiKey) {
-            completeTask(task.id, 'failed', 'No Gemini API key')
+          const active = getActiveProvider(vault)
+          if (!active) {
+            completeTask(task.id, 'failed', 'No AI API key')
             setAgent('Planner Agent', 'IDLE', 'Waiting for instructions...')
             notifyRenderer(win, 'task-update', tasks)
             notifyRenderer(win, 'agent-update', agentStatuses)
-            return { success: false, error: 'No Gemini API key configured. Go to Settings to add one.' }
+            return { success: false, error: 'No AI API key configured. Go to Settings and add at least one (Gemini, Groq, HuggingFace, or NVIDIA).' }
           }
 
-          const ai = new GoogleGenAI({ apiKey: geminiKey })
           const chatDir = path.resolve(app.getPath('userData'), 'Chat')
           const chatFile = path.join(chatDir, 'iris_memory.json')
           if (!fs.existsSync(chatDir)) fs.mkdirSync(chatDir, { recursive: true })
@@ -580,19 +575,26 @@ export default function registerCommandRouter({
           const trimmed = history.length > 30 ? history.slice(-30) : history
           fs.writeFileSync(chatFile, JSON.stringify(trimmed, null, 2))
 
-          const recentHistory = trimmed.slice(-10)
-          const firstUserIdx = recentHistory.findIndex((m) => m.role !== 'model')
-          const contents = (firstUserIdx > 0 ? recentHistory.slice(firstUserIdx) : recentHistory).map((m) => ({
-            role: m.role === 'model' ? 'model' : 'user',
-            parts: [{ text: m.content }]
-          }))
+          const result = await chatWithAI(intent.prompt, trimmed, vault)
 
-          const response = await ai.models.generateContent({
-            model: 'gemini-2.0-flash',
-            contents
-          })
+          if (!result.success) {
+            // Rollback orphaned user message
+            try {
+              const current = JSON.parse(fs.readFileSync(chatFile, 'utf-8')) || []
+              if (current.length > 0 && current[current.length - 1].role === 'user') {
+                current.pop()
+                fs.writeFileSync(chatFile, JSON.stringify(current, null, 2))
+              }
+            } catch { /* best-effort rollback */ }
 
-          const text = response.text ?? ''
+            completeTask(task.id, 'failed', result.error || 'Unknown error')
+            setAgent('Planner Agent', 'IDLE', 'Waiting for instructions...')
+            notifyRenderer(win, 'task-update', tasks)
+            notifyRenderer(win, 'agent-update', agentStatuses)
+            return result
+          }
+
+          const text = result.text ?? ''
 
           // Re-read to avoid overwriting concurrent writes
           let current: { role: string; content: string; timestamp: string }[] = []
@@ -605,11 +607,11 @@ export default function registerCommandRouter({
 
           if (win && !win.isDestroyed()) win.webContents.send('gemini-response', text)
 
-          completeTask(task.id, 'completed', text.slice(0, 100))
+          completeTask(task.id, 'completed', `[${result.provider}] ${text.slice(0, 100)}`)
           setAgent('Planner Agent', 'IDLE', 'Waiting for instructions...')
           notifyRenderer(win, 'task-update', tasks)
           notifyRenderer(win, 'agent-update', agentStatuses)
-          return { success: true, text }
+          return { success: true, text, provider: result.provider }
         } catch (err) {
           // Rollback orphaned user message
           try {
