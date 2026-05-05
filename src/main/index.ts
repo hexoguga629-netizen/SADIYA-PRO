@@ -12,7 +12,7 @@ import {
 } from 'electron'
 import { loadSecureVault, saveSecureVault, withVaultLock, vaultFileExists } from './security/vault'
 import { withChatLock, readChatHistory, writeChatHistory } from './logic/chat-lock'
-import { GoogleGenAI } from '@google/genai'
+import { chatWithAI, getActiveProvider } from './services/ai-providers'
 import path, { join } from 'path'
 import fs from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -257,38 +257,35 @@ app.whenReady().then(() => {
     return withChatLock(async () => {
       try {
         const vault = loadSecureVault()
-        const geminiKey = vault.apiKeys['gemini'] || ''
-        if (!geminiKey) return { success: false, error: 'No Gemini API key configured. Go to Settings to add one.' }
-
-        const ai = new GoogleGenAI({ apiKey: geminiKey })
+        const active = getActiveProvider(vault)
+        if (!active) return { success: false, error: 'No AI API key configured. Go to Settings and add at least one (Gemini, Groq, HuggingFace, or NVIDIA).' }
 
         let history = readChatHistory(chatDir, chatFile)
         history.push({ role: 'user', content: prompt, timestamp: new Date().toISOString() })
         writeChatHistory(chatDir, chatFile, history)
 
-        const recentHistory = history.slice(-10)
-        const firstUserIdx = recentHistory.findIndex((m) => m.role !== 'model')
-        const contents = (firstUserIdx > 0 ? recentHistory.slice(firstUserIdx) : recentHistory).map((m) => ({
-          role: m.role === 'model' ? 'model' : 'user',
-          parts: [{ text: m.content }]
-        }))
+        const result = await chatWithAI(prompt, history, vault)
 
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.0-flash',
-          contents
-        })
+        if (!result.success) {
+          try {
+            const current = readChatHistory(chatDir, chatFile)
+            if (current.length > 0 && current[current.length - 1].role === 'user') {
+              current.pop()
+              writeChatHistory(chatDir, chatFile, current)
+            }
+          } catch { /* best-effort rollback */ }
+          return result
+        }
 
-        const text = response.text ?? ''
+        const text = result.text ?? ''
 
         history = readChatHistory(chatDir, chatFile)
         history.push({ role: 'model', content: text, timestamp: new Date().toISOString() })
         writeChatHistory(chatDir, chatFile, history)
 
         if (mainWindow) mainWindow.webContents.send('gemini-response', text)
-        return { success: true, text }
+        return { success: true, text, provider: result.provider }
       } catch (err) {
-        // Rollback: remove the orphaned user message so consecutive user-role
-        // entries don't cascade into permanent Gemini API failures
         try {
           const current = readChatHistory(chatDir, chatFile)
           if (current.length > 0 && current[current.length - 1].role === 'user') {

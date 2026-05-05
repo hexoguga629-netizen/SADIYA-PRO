@@ -615,15 +615,14 @@ export default function registerCommandRouter({
             return { success: true, text, provider: result.provider }
           })
         } catch (err) {
-          // Rollback orphaned user message
+          // Rollback orphaned user message (e.g. disk full after chatWithAI succeeded)
           try {
-            const chatFile = path.join(app.getPath('userData'), 'Chat', 'iris_memory.json')
-            if (fs.existsSync(chatFile)) {
-              const current = JSON.parse(fs.readFileSync(chatFile, 'utf-8')) || []
-              if (current.length > 0 && current[current.length - 1].role === 'user') {
-                current.pop()
-                fs.writeFileSync(chatFile, JSON.stringify(current, null, 2))
-              }
+            const chatDir = path.resolve(app.getPath('userData'), 'Chat')
+            const chatFile = path.join(chatDir, 'iris_memory.json')
+            const current = readChatHistory(chatDir, chatFile)
+            if (current.length > 0 && current[current.length - 1].role === 'user') {
+              current.pop()
+              writeChatHistory(chatDir, chatFile, current)
             }
           } catch { /* best-effort rollback */ }
 
