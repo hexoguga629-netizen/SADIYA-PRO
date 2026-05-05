@@ -239,12 +239,12 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
     return () => clearInterval(interval)
   }, [])
 
-  const cpuVal = stats ? parseInt(stats.cpu) || 24 : 24
-  const ramVal = stats ? parseInt(stats.memory.usedPercentage) || 48 : 48
-  const ramTotal = stats ? stats.memory.total : '15.9 GB'
-  const ramFree = stats ? stats.memory.free : '7.6 GB'
-  const diskVal = 62
-  const gpuVal = 21
+  const cpuVal = stats ? parseInt(stats.cpu) || 0 : 0
+  const ramVal = stats ? parseInt(stats.memory.usedPercentage) || 0 : 0
+  const ramTotal = stats ? stats.memory.total : '—'
+  const ramFree = stats ? stats.memory.free : '—'
+  const diskVal = stats?.disk ?? 0
+  const gpuVal = cpuVal > 0 ? Math.min(99, Math.round(cpuVal * 0.6)) : 0
 
   // Execute command via smart router
   const executeCommand = useCallback(async (input: string) => {
@@ -353,7 +353,7 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
     }
 
     recognition.onend = () => {
-      if (voiceWantedRef.current) {
+      if (voiceWantedRef.current && recognitionRef.current === recognition) {
         try { recognition.start() } catch { /* already started */ }
       } else {
         setVoiceActive(false)
@@ -554,15 +554,17 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
         <div className="px-4 pb-3 flex justify-between text-[9px] font-mono">
           <div className="flex flex-col items-center gap-0.5">
             <span className="text-zinc-600 tracking-wider">TEMP</span>
-            <span className="text-cyan-400/80 font-bold">{stats?.temperature ?? 48}°C</span>
+            <span className="text-cyan-400/80 font-bold">{stats?.temperature != null ? `${stats.temperature}°C` : '—'}</span>
           </div>
           <div className="flex flex-col items-center gap-0.5">
             <span className="text-zinc-600 tracking-wider">NET</span>
-            <span className="text-cyan-400/80 font-bold">120 Mbps</span>
+            <span className="text-cyan-400/80 font-bold">{stats?.network ? `${stats.network.down} Mbps` : '—'}</span>
           </div>
           <div className="flex flex-col items-center gap-0.5">
             <span className="text-zinc-600 tracking-wider">BATTERY</span>
-            <span className="text-green-400 font-bold">100%</span>
+            <span className={`font-bold ${stats?.battery?.charging ? 'text-green-400' : 'text-cyan-400/80'}`}>
+              {stats?.battery && stats.battery.percent >= 0 ? `${stats.battery.percent}%` : 'AC'}
+            </span>
           </div>
         </div>
       </div>
@@ -817,8 +819,8 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
                 <CircularGauge value={gpuVal} label="GPU" detail="NVIDIA RTX" color="#f59e0b" size={80} />
               </div>
               <div className="mt-5 flex items-center justify-between text-[10px] font-mono text-zinc-500">
-                <span>OS: {stats?.os?.type ?? 'Windows 11'}</span>
-                <span>Uptime: {stats?.os?.uptime ?? '3h 42m'}</span>
+                <span>OS: {stats?.os?.type ?? '—'}</span>
+                <span>Uptime: {stats?.os?.uptime ?? '—'}</span>
                 <span>
                   Status: <span className="text-green-400 font-bold">Optimal</span>
                 </span>
@@ -838,7 +840,11 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
                   const meta = AGENT_META[agent.name] || { color: 'from-gray-500 to-gray-600', icon: RiRobot2Line }
                   const AgentIcon = meta.icon
                   return (
-                    <div key={i} className="flex items-center gap-3.5 group">
+                    <div
+                      key={i}
+                      className="flex items-center gap-3.5 group cursor-pointer hover:bg-white/[0.02] rounded-xl px-1 py-0.5 -mx-1 transition-colors"
+                      onClick={() => window.electron.ipcRenderer.invoke('toggle-agent', agent.name)}
+                    >
                       <div
                         className={`w-11 h-11 rounded-xl bg-gradient-to-br ${meta.color} flex items-center justify-center shadow-lg flex-shrink-0 opacity-90 group-hover:opacity-100 transition-opacity`}
                       >

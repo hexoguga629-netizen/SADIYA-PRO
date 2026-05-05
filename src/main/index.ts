@@ -56,7 +56,8 @@ import registerCommandRouter from './logic/command-router'
 import registerAIProviders from './services/ai-providers'
 import { autoUpdater } from 'electron-updater'
 
-// Auto-grant mic/camera permission dialogs (real device access, not fake streams)
+// Auto-accept media permission dialogs (needed for desktop capture + mic)
+app.commandLine.appendSwitch('use-fake-ui-for-media-stream')
 app.commandLine.appendSwitch('enable-features', 'WebSpeechAPI')
 app.commandLine.appendSwitch('enable-speech-input')
 
