@@ -175,6 +175,7 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
   // Voice recognition refs
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const synthRef = useRef<SpeechSynthesisUtterance | null>(null)
+  const voiceWantedRef = useRef(false)
 
   // System stats polling
   useEffect(() => {
@@ -317,24 +318,16 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
   }, [executeCommand, onOpenSettings])
 
   // Voice: Web Speech API
-  const toggleVoice = useCallback(() => {
-    if (voiceActive) {
-      // Stop listening
-      if (recognitionRef.current) {
-        recognitionRef.current.stop()
-        recognitionRef.current = null
-      }
+  const startRecognition = useCallback(() => {
+    const SpeechRecognitionCtor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SpeechRecognitionCtor) {
+      setCommandError('Speech recognition not supported. Use Chrome or Edge.')
+      voiceWantedRef.current = false
       setVoiceActive(false)
       return
     }
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SpeechRecognition) {
-      setCommandError('Speech recognition is not supported in this browser.')
-      return
-    }
-
-    const recognition = new SpeechRecognition()
+    const recognition = new SpeechRecognitionCtor()
     recognition.continuous = true
     recognition.interimResults = false
     recognition.lang = 'en-US'
@@ -350,36 +343,62 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
       }
     }
 
-    recognition.onerror = () => {
+    recognition.onerror = (event: Event & { error?: string }) => {
+      const err = event.error || 'unknown'
+      if (err === 'aborted' || err === 'no-speech') return
+      setCommandError(`Voice error: ${err}. Check microphone access.`)
+      voiceWantedRef.current = false
       setVoiceActive(false)
       recognitionRef.current = null
     }
 
     recognition.onend = () => {
-      setVoiceActive(false)
-      recognitionRef.current = null
+      if (voiceWantedRef.current) {
+        try { recognition.start() } catch { /* already started */ }
+      } else {
+        setVoiceActive(false)
+        recognitionRef.current = null
+      }
     }
 
     recognition.start()
     recognitionRef.current = recognition
     setVoiceActive(true)
-  }, [voiceActive, executeCommand])
+  }, [executeCommand])
+
+  const toggleVoice = useCallback(() => {
+    if (voiceWantedRef.current) {
+      voiceWantedRef.current = false
+      window.speechSynthesis?.cancel()
+      if (recognitionRef.current) {
+        recognitionRef.current.stop()
+        recognitionRef.current = null
+      }
+      setVoiceActive(false)
+      return
+    }
+    voiceWantedRef.current = true
+    setVoiceActive(true)
+    startRecognition()
+  }, [startRecognition])
 
   // Text-to-speech for AI responses
   useEffect(() => {
     const ipc = window.electron.ipcRenderer
     const onGeminiResponse = (_e: unknown, text: string) => {
-      if (voiceActive && text && window.speechSynthesis) {
+      if (voiceWantedRef.current && text && window.speechSynthesis) {
+        window.speechSynthesis.cancel()
         const utterance = new SpeechSynthesisUtterance(text.slice(0, 500))
         utterance.rate = 1.0
         utterance.pitch = 1.0
+        utterance.lang = 'en-US'
         synthRef.current = utterance
         window.speechSynthesis.speak(utterance)
       }
     }
     const unsub = ipc.on('gemini-response', onGeminiResponse)
     return () => { unsub() }
-  }, [voiceActive])
+  }, [])
 
   // Console messages from real chat history
   const consoleMessages = chatHistory.length > 0
