@@ -843,7 +843,7 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
                     <div
                       key={i}
                       className="flex items-center gap-3.5 group cursor-pointer hover:bg-white/[0.02] rounded-xl px-1 py-0.5 -mx-1 transition-colors"
-                      onClick={() => window.electron.ipcRenderer.invoke('toggle-agent', agent.name)}
+                      onClick={() => window.electron.ipcRenderer.invoke('toggle-agent', agent.name).catch(() => {})}
                     >
                       <div
                         className={`w-11 h-11 rounded-xl bg-gradient-to-br ${meta.color} flex items-center justify-center shadow-lg flex-shrink-0 opacity-90 group-hover:opacity-100 transition-opacity`}
