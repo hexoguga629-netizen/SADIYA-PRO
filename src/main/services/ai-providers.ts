@@ -74,7 +74,7 @@ async function chatWithNvidia(apiKey: string, prompt: string, history: { role: s
       'Authorization': `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      model: 'meta/llama-3.1-8b-instruct',
+      model: 'meta/llama-4-maverick-17b-128e-instruct',
       messages,
       max_tokens: 2048,
       temperature: 0.7
