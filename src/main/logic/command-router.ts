@@ -144,6 +144,17 @@ export default function registerCommandRouter({
   ipcMain.removeHandler('get-agent-statuses')
   ipcMain.handle('get-agent-statuses', () => agentStatuses)
 
+  ipcMain.removeHandler('toggle-agent')
+  ipcMain.handle('toggle-agent', (_e, agentName: string) => {
+    const agent = agentStatuses.find((a) => a.name === agentName)
+    if (!agent) return null
+    agent.status = agent.status === 'ACTIVE' ? 'IDLE' : 'ACTIVE'
+    agent.desc = agent.status === 'ACTIVE' ? 'Activated manually' : 'Paused by operator'
+    const win = getMainWindow()
+    notifyRenderer(win, 'agent-update', agentStatuses)
+    return { name: agent.name, status: agent.status }
+  })
+
   ipcMain.removeHandler('add-task')
   ipcMain.handle('add-task', (_e, { text, agent }: { text: string; agent: string }) => {
     return addTask(text, agent)
