@@ -319,10 +319,20 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
   }, [executeCommand, onOpenSettings])
 
   // Voice: Web Speech API
-  const startRecognition = useCallback(() => {
+  const startRecognition = useCallback(async () => {
     const SpeechRecognitionCtor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     if (!SpeechRecognitionCtor) {
       setCommandError('Speech recognition not supported. Use Chrome or Edge.')
+      voiceWantedRef.current = false
+      setVoiceActive(false)
+      return
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream.getTracks().forEach((t) => t.stop())
+    } catch {
+      setCommandError('Microphone access denied. Allow microphone in system settings.')
       voiceWantedRef.current = false
       setVoiceActive(false)
       return
