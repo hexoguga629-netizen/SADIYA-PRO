@@ -338,6 +338,8 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
       return
     }
 
+    if (!voiceWantedRef.current) return
+
     const recognition = new SpeechRecognitionCtor()
     recognition.continuous = true
     recognition.interimResults = false
