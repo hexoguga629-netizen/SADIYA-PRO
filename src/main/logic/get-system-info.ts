@@ -154,12 +154,14 @@ async function getDiskUsage(): Promise<{ percent: number; usedGB: number; totalG
         return { percent: Math.round((usedGB / totalGB) * 100), usedGB, totalGB }
       }
     } else {
-      const out = await runCommand("df -BG / | tail -1 | awk '{print $3, $2}'")
+      const out = await runCommand("df -k / | tail -1 | awk '{print $3, $2}'")
       if (out) {
         const parts = out.split(/\s+/)
-        const usedGB = parseFloat(parts[0]?.replace('G', '')) || 0
-        const totalGB = parseFloat(parts[1]?.replace('G', '')) || 1
-        return { percent: Math.round((usedGB / totalGB) * 100), usedGB, totalGB }
+        const usedKB = parseFloat(parts[0]) || 0
+        const totalKB = parseFloat(parts[1]) || 1
+        const usedGB = Math.round((usedKB / 1048576) * 10) / 10
+        const totalGB = Math.round((totalKB / 1048576) * 10) / 10
+        return { percent: Math.round((usedKB / totalKB) * 100), usedGB, totalGB }
       }
     }
   } catch { /* fallback */ }
