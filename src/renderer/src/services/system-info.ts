@@ -14,7 +14,11 @@ export interface SystemStats {
     percent: number
     charging: boolean
   }
-  disk: number
+  disk: {
+    percent: number
+    usedGB: number
+    totalGB: number
+  }
   os: {
     type: string
     uptime: string
