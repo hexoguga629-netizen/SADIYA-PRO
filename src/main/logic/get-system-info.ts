@@ -146,7 +146,7 @@ async function getDiskUsage(): Promise<{ percent: number; usedGB: number; totalG
   const platform = os.platform()
   try {
     if (platform === 'win32') {
-      const out = await runCommand('powershell "$d = Get-PSDrive C; Write-Output (([math]::round($d.Used/1GB,1)).ToString() + \",\" + ([math]::round(($d.Used+$d.Free)/1GB,1)).ToString())"')
+      const out = await runCommand('powershell "$d = Get-PSDrive C; Write-Output (([math]::round($d.Used/1GB,1)).ToString([System.Globalization.CultureInfo]::InvariantCulture) + \",\" + ([math]::round(($d.Used+$d.Free)/1GB,1)).ToString([System.Globalization.CultureInfo]::InvariantCulture))"')
       if (out) {
         const [usedStr, totalStr] = out.split(',')
         const usedGB = parseFloat(usedStr) || 0
