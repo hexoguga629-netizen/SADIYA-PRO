@@ -243,7 +243,8 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
   const ramVal = stats ? parseInt(stats.memory.usedPercentage) || 0 : 0
   const ramTotal = stats ? stats.memory.total : '—'
   const ramFree = stats ? stats.memory.free : '—'
-  const diskVal = stats?.disk ?? 0
+  const diskVal = stats?.disk?.percent ?? 0
+  const diskDetail = stats?.disk ? `${stats.disk.usedGB} / ${stats.disk.totalGB} GB` : '—'
   const gpuVal = cpuVal > 0 ? Math.min(99, Math.round(cpuVal * 0.6)) : 0
 
   // Execute command via smart router
@@ -815,8 +816,8 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
               <div className="flex justify-between gap-3">
                 <CircularGauge value={cpuVal} label="CPU" detail="3.2 GHz" color="#06b6d4" size={80} />
                 <CircularGauge value={ramVal} label="RAM" detail={`${ramFree} / ${ramTotal}`} color="#a855f7" size={80} />
-                <CircularGauge value={diskVal} label="DISK" detail="233 / 476 GB" color="#22c55e" size={80} />
-                <CircularGauge value={gpuVal} label="GPU" detail="NVIDIA RTX" color="#f59e0b" size={80} />
+                <CircularGauge value={diskVal} label="DISK" detail={diskDetail} color="#22c55e" size={80} />
+                <CircularGauge value={gpuVal} label="GPU" detail="Est. from CPU" color="#f59e0b" size={80} />
               </div>
               <div className="mt-5 flex items-center justify-between text-[10px] font-mono text-zinc-500">
                 <span>OS: {stats?.os?.type ?? '—'}</span>

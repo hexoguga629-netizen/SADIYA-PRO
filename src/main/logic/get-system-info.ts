@@ -142,18 +142,28 @@ async function getBattery(): Promise<{ percent: number; charging: boolean }> {
   return { percent: -1, charging: false }
 }
 
-async function getDiskUsage(): Promise<number> {
+async function getDiskUsage(): Promise<{ percent: number; usedGB: number; totalGB: number }> {
   const platform = os.platform()
   try {
     if (platform === 'win32') {
-      const out = await runCommand('powershell "$d = Get-PSDrive C; [math]::round($d.Used / ($d.Used + $d.Free) * 100)"')
-      if (out) return parseInt(out, 10) || 0
+      const out = await runCommand('powershell "$d = Get-PSDrive C; Write-Output (([math]::round($d.Used/1GB,1)).ToString() + \",\" + ([math]::round(($d.Used+$d.Free)/1GB,1)).ToString())"')
+      if (out) {
+        const [usedStr, totalStr] = out.split(',')
+        const usedGB = parseFloat(usedStr) || 0
+        const totalGB = parseFloat(totalStr) || 1
+        return { percent: Math.round((usedGB / totalGB) * 100), usedGB, totalGB }
+      }
     } else {
-      const out = await runCommand("df -h / | tail -1 | awk '{print $5}'")
-      if (out) return parseInt(out.replace('%', ''), 10) || 0
+      const out = await runCommand("df -BG / | tail -1 | awk '{print $3, $2}'")
+      if (out) {
+        const parts = out.split(/\s+/)
+        const usedGB = parseFloat(parts[0]?.replace('G', '')) || 0
+        const totalGB = parseFloat(parts[1]?.replace('G', '')) || 1
+        return { percent: Math.round((usedGB / totalGB) * 100), usedGB, totalGB }
+      }
     }
   } catch { /* fallback */ }
-  return 0
+  return { percent: 0, usedGB: 0, totalGB: 0 }
 }
 
 function getOsName(): string {
@@ -211,7 +221,7 @@ export default function registerSystemHandlers(ipcMain: IpcMain) {
   ipcMain.handle('get-system-stats', async () => {
     const totalMem = os.totalmem()
     const freeMem = os.freemem()
-    const [temperature, network, battery, diskPercent] = await Promise.all([
+    const [temperature, network, battery, diskInfo] = await Promise.all([
       getCpuTemperature(),
       getNetworkSpeed(),
       getBattery(),
@@ -227,7 +237,7 @@ export default function registerSystemHandlers(ipcMain: IpcMain) {
       temperature: temperature > 0 ? temperature : null,
       network,
       battery,
-      disk: diskPercent,
+      disk: diskInfo,
       os: {
         type: getOsName(),
         uptime: (os.uptime() / 3600).toFixed(1) + 'h'
