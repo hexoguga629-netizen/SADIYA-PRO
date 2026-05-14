@@ -230,11 +230,14 @@ app.whenReady().then(() => {
     try {
       const status = systemPreferences.getMediaAccessStatus('microphone')
       if (status === 'granted') return { granted: true }
-      if (process.platform === 'darwin') {
-        const granted = await systemPreferences.askForMediaAccess('microphone')
-        return { granted }
+      if (status === 'denied' || status === 'restricted') {
+        if (process.platform === 'darwin') {
+          const granted = await systemPreferences.askForMediaAccess('microphone')
+          return { granted }
+        }
+        return { granted: false, platform: process.platform }
       }
-      return { granted: false, platform: process.platform }
+      return { granted: true }
     } catch {
       return { granted: true }
     }
