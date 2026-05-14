@@ -328,11 +328,25 @@ export default function SadiyaDashboard({ onOpenSettings }: { onOpenSettings?: (
       return
     }
 
+    const ipc = window.electron.ipcRenderer
+    try {
+      const permResult = await ipc.invoke('check-mic-permission')
+      if (permResult && !permResult.granted) {
+        const msg = permResult.platform === 'win32'
+          ? 'Microphone blocked by Windows. Go to Settings → Privacy → Microphone and enable access for this app.'
+          : 'Microphone access denied. Allow microphone in system settings.'
+        setCommandError(msg)
+        voiceWantedRef.current = false
+        setVoiceActive(false)
+        return
+      }
+    } catch { /* permission check unavailable, proceed */ }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       stream.getTracks().forEach((t) => t.stop())
     } catch {
-      setCommandError('Microphone access denied. Allow microphone in system settings.')
+      setCommandError('Microphone not available. Connect a microphone and try again.')
       voiceWantedRef.current = false
       setVoiceActive(false)
       return

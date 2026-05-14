@@ -226,6 +226,20 @@ app.whenReady().then(() => {
     }
   }
 
+  ipcMain.handle('check-mic-permission', async () => {
+    try {
+      const status = systemPreferences.getMediaAccessStatus('microphone')
+      if (status === 'granted') return { granted: true }
+      if (process.platform === 'darwin') {
+        const granted = await systemPreferences.askForMediaAccess('microphone')
+        return { granted }
+      }
+      return { granted: false, platform: process.platform }
+    } catch {
+      return { granted: true }
+    }
+  })
+
   ipcMain.handle('secure-save-keys', async (_, { groqKey, geminiKey }) => {
     return withVaultLock(async () => {
       try {
