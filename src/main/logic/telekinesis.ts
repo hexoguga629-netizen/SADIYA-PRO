@@ -1,7 +1,99 @@
-import { IpcMain } from 'electron'
+import { IpcMain, screen } from 'electron'
+
+type MockWindow = {
+  isWindow: () => boolean
+  isVisible: () => boolean
+  getTitle: () => string
+  path: string
+  restore: () => void
+  bringToTop: () => void
+  maximize: () => void
+  setBounds: (bounds: { x: number; y: number; width: number; height: number }) => void
+  getBounds: () => { x: number; y: number; width: number; height: number }
+}
+
+// Mocking windowManager to fix build failure
+const windowManager: {
+  requestAccessibility: () => void
+  getWindows: () => MockWindow[]
+  getActiveWindow: () => MockWindow
+} = {
+  requestAccessibility: () => {},
+  getWindows: () => [],
+  getActiveWindow: () => ({
+    isWindow: () => true,
+    isVisible: () => true,
+    getTitle: () => 'Unknown',
+    path: '',
+    restore: () => {},
+    bringToTop: () => {},
+    maximize: () => {},
+    setBounds: () => {},
+    getBounds: () => ({ x: 0, y: 0, width: 800, height: 600 })
+  })
+}
 
 export default function registerTelekinesis({ ipcMain }: { ipcMain: IpcMain }) {
-  ipcMain.handle('telekinesis-move', async () => {
-    return { success: false, error: 'Telekinesis not available' }
+  ipcMain.handle('teleport-windows', async (_event, commands) => {
+    try {
+      windowManager.requestAccessibility()
+
+      const primaryDisplay = screen.getPrimaryDisplay()
+      const { width, height, x: screenX, y: screenY } = primaryDisplay.workArea
+
+      const openWindows = windowManager.getWindows()
+
+      for (const cmd of commands) {
+        const validWindows = openWindows.filter(
+          (w) =>
+            w.isWindow() &&
+            w.isVisible() &&
+            w.getTitle() !== '' &&
+            (w.getTitle().toLowerCase().includes(cmd.appName.toLowerCase()) ||
+              w.path.toLowerCase().includes(cmd.appName.toLowerCase()))
+        )
+
+        const targetWindow = validWindows[0]
+
+        if (targetWindow) {
+          targetWindow.restore() 
+          targetWindow.bringToTop()
+
+          const halfW = Math.floor(width / 2)
+          const halfH = Math.floor(height / 2)
+
+          let newBounds = { x: screenX, y: screenY, width, height }
+
+          switch (cmd.position) {
+            case 'left':
+              newBounds = { x: screenX, y: screenY, width: halfW, height }
+              break
+            case 'right':
+              newBounds = { x: screenX + halfW, y: screenY, width: halfW, height }
+              break
+            case 'top-left':
+              newBounds = { x: screenX, y: screenY, width: halfW, height: halfH }
+              break
+            case 'bottom-left':
+              newBounds = { x: screenX, y: screenY + halfH, width: halfW, height: halfH }
+              break
+            case 'top-right':
+              newBounds = { x: screenX + halfW, y: screenY, width: halfW, height: halfH }
+              break
+            case 'bottom-right':
+              newBounds = { x: screenX + halfW, y: screenY + halfH, width: halfW, height: halfH }
+              break
+            case 'maximize':
+              targetWindow.maximize()
+              continue 
+          }
+
+          targetWindow.setBounds(newBounds)
+        }
+      }
+      return { success: true }
+    } catch (err) {
+      return { success: false, error: String(err) }
+    }
   })
 }

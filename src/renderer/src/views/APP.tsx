@@ -42,7 +42,7 @@ const SmartIcon = ({ name }: { name: string }) => {
 
   return (
     <div
-      className={`w-10 h-10 rounded-lg flex items-center justify-center border border-white/5 ${bg} ${color} shadow-sm group-
+      className={`w-10 h-10 rounded-lg flex items-center justify-center border border-white/5 ${bg} ${color} shadow-sm group-hover:scale-110 transition-transform`}
     >
       {icon}
     </div>
@@ -52,7 +52,7 @@ const SmartIcon = ({ name }: { name: string }) => {
 const AppCard = ({ app }: { app: AppItem }) => (
   <div
     onClick={() => window.electron.ipcRenderer.invoke('open-app', app.name)}
-    className="bg-zinc-950/40 backdrop-blur-xl border border-white/5 rounded-xl p-4 flex items-center gap-4 hover:bg-white/10
+    className="bg-zinc-950/40 backdrop-blur-xl border border-white/5 rounded-xl p-4 flex items-center gap-4 hover:bg-white/10 hover:border-emerald-500/30 transition-all cursor-pointer group active:scale-95"
   >
     <SmartIcon name={app.name} />
     <div className="flex-1 overflow-hidden">
@@ -111,7 +111,7 @@ const AppsView = () => {
     <div className="flex-1 bg-white/8 p-8 h-full flex flex-col animate-in fade-in zoom-in duration-300">
       <div className="flex items-center justify-between mb-6 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-emerald-500/10 rounded-lg border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)
+          <div className="p-2 bg-emerald-500/10 rounded-lg border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]">
             <RiAppsLine className="text-emerald-400" size={20} />
           </div>
           <div>
@@ -119,7 +119,7 @@ const AppsView = () => {
             <p className="text-[10px] text-zinc-500 font-mono">INDEXED SOFTWARE LIBRARY</p>
           </div>
         </div>
-        <div className="text-xs font-mono text-emerald-500 bg-emerald-500/5 px-3 py-1 rounded-full border border-emerald-500/
+        <div className="text-xs font-mono text-emerald-500 bg-emerald-500/5 px-3 py-1 rounded-full border border-emerald-500/20">
           {loading ? 'INDEXING...' : `${allApps.length} FOUND`}
         </div>
       </div>

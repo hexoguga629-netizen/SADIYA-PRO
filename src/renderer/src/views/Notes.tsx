@@ -128,7 +128,7 @@ const NotesView = ({ glassPanel }: { glassPanel?: string }) => {
             <span className="text-[10px] text-zinc-500 font-mono mr-2">{notes.length} ITEMS</span>
             <button
               onClick={startCreating}
-              className="p-1.5 bg-emerald-500/10 text-emerald-400 rounded-lg hover:bg-emerald-500 hover:text-black transition
+              className="p-1.5 bg-emerald-500/10 text-emerald-400 rounded-lg hover:bg-emerald-500 hover:text-black transition-all"
               title="Create Manual Note"
             >
               <RiAddLine size={14} />
@@ -140,7 +140,7 @@ const NotesView = ({ glassPanel }: { glassPanel?: string }) => {
           {notes.length === 0 ? (
             <div className="text-center text-zinc-400 text-xs mt-10">
               <p>No memories saved.</p>
-              <p className="mt-2 opacity-50">Click + or ask IRIS.</p>
+              <p className="mt-2 opacity-50">Click + or ask SADIYA.</p>
             </div>
           ) : (
             notes.map((note) => (
@@ -158,7 +158,7 @@ const NotesView = ({ glassPanel }: { glassPanel?: string }) => {
               >
                 <div className="overflow-hidden">
                   <h3
-                    className={`text-xs font-bold truncate ${selectedNote?.filename === note.filename && !isEditorOpen ? 'tex
+                    className={`text-xs font-bold truncate ${selectedNote?.filename === note.filename && !isEditorOpen ? 'text-emerald-100' : 'text-zinc-200'}`}
                   >
                     {note.title.toUpperCase()}
                   </h3>
@@ -169,7 +169,7 @@ const NotesView = ({ glassPanel }: { glassPanel?: string }) => {
 
                 <button
                   onClick={(e) => deleteNote(note.filename, e)}
-                  className="opacity-0 group-hover:opacity-100 p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 round
+                  className="opacity-0 group-hover:opacity-100 p-2 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
                 >
                   <RiDeleteBinLine size={14} />
                 </button>
@@ -180,7 +180,7 @@ const NotesView = ({ glassPanel }: { glassPanel?: string }) => {
       </div>
 
       <div
-        className={`col-span-8 ${glassPanel || ''} bg-black/40 backdrop-blur-xl border border-white/5 rounded-2xl flex flex-c
+        className={`col-span-8 ${glassPanel || ''} bg-black/40 backdrop-blur-xl border border-white/5 rounded-2xl flex flex-col overflow-hidden relative`}
       >
         {isEditorOpen ? (
           <div className="flex-1 flex flex-col p-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -190,7 +190,7 @@ const NotesView = ({ glassPanel }: { glassPanel?: string }) => {
                 placeholder="ENTER NOTE TITLE..."
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                className="bg-transparent border-none outline-none text-lg font-bold text-white placeholder-zinc-500 w-full t
+                className="bg-transparent border-none outline-none text-lg font-bold text-white placeholder-zinc-500 w-full tracking-wider"
                 autoFocus
               />
               <div className="flex gap-2">
@@ -207,14 +207,14 @@ const NotesView = ({ glassPanel }: { glassPanel?: string }) => {
               placeholder="Write your note in Markdown..."
               value={newContent}
               onChange={(e) => setNewContent(e.target.value)}
-              className="flex-1 bg-transparent border-none outline-none resize-none text-sm font-mono text-zinc-50 placeholde
+              className="flex-1 bg-transparent border-none outline-none resize-none text-sm font-mono text-zinc-50 placeholder-zinc-500 leading-relaxed p-2 scrollbar-small"
             />
 
             <div className="flex justify-end pt-4">
               <button
                 onClick={saveManualNote}
                 disabled={!newTitle || !newContent}
-                className="flex items-center gap-2 px-6 py-2 bg-emerald-500 text-black font-bold text-xs rounded-lg hover:bg-
+                className="flex items-center gap-2 px-6 py-2 bg-emerald-500 text-black font-bold text-xs rounded-lg hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 <RiSave3Line /> {editOriginalFilename ? 'UPDATE MEMORY' : 'SAVE TO MEMORY'}
               </button>

@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef, useState } from 'react'
+import { useEffect, useCallback, useRef, useState, useMemo } from 'react'
 import Sphere from '@renderer/components/Sphere'
 import {
   RiCpuLine,
@@ -21,7 +21,7 @@ import { HiComputerDesktop } from 'react-icons/hi2'
 import * as faceapi from 'face-api.js'
 import { VisionMode } from '@renderer/IndexRoot'
 
-interface IrisProps {
+interface SADIYAProps {
   isSystemActive: boolean
   toggleSystem: () => void
   isMicMuted: boolean
@@ -34,7 +34,7 @@ interface IrisProps {
 }
 
 interface DashboardViewProps {
-  props: IrisProps
+  props: SADIYAProps
   stats: any
   chatHistory: any[]
   onVisionClick: () => void
@@ -61,6 +61,7 @@ export default function DashboardView({
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const videoElementRef = useRef<HTMLVideoElement | null>(null)
+  const screenPreviewRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const faceScanInterval = useRef<NodeJS.Timeout | null>(null)
 
@@ -196,6 +197,20 @@ export default function DashboardView({
     }
   }, [isVideoOn, visionMode, modelsLoaded])
 
+  useEffect(() => {
+    if (
+      isVideoOn &&
+      visionMode === 'screen' &&
+      activeStream &&
+      screenPreviewRef.current
+    ) {
+      screenPreviewRef.current.srcObject = activeStream
+      screenPreviewRef.current.play().catch(() => {})
+    } else if (screenPreviewRef.current) {
+      screenPreviewRef.current.srcObject = null
+    }
+  }, [activeStream, isVideoOn, visionMode])
+
   const setVideoRef = useCallback(
     (node: HTMLVideoElement | null) => {
       videoElementRef.current = node
@@ -236,7 +251,7 @@ export default function DashboardView({
       shadowClass: 'shadow-[0_0_8px_#10b981]',
       bgGradient: 'from-emerald-950/30 to-black/60',
       pattern:
-        'bg-[linear-linear(to_right,#10b98108_1px,transparent_1px),linear-linear(to_bottom,#10b98108_1px,transparent_1px)] bg
+        'bg-[linear-linear(to_right,#10b98108_1px,transparent_1px),linear-linear(to_bottom,#10b98108_1px,transparent_1px)] bg-[size:12px_12px]'
     },
     {
       icon: <FaMemory />,
@@ -277,20 +292,20 @@ export default function DashboardView({
       shadowClass: '',
       bgGradient: 'from-purple-950/30 to-black/60',
       pattern:
-        'bg-[linear-linear(45deg,#a855f708_25%,transparent_25%,transparent_50%,#a855f708_50%,#a855f708_75%,transparent_75%,tr
+        'bg-[linear-linear(45deg,#a855f708_25%,transparent_25%,transparent_50%,#a855f708_50%,#a855f708_75%,transparent_75%,transparent)] bg-[size:24px_24px]',
       hideBar: true
     }
   ]
 
   return (
-    <div className="flex-1 p-4 bg-white/2 grid grid-cols-12 gap-4 h-full overflow-hidden relative animate-in fade-in zoom-in 
+    <div className="flex-1 p-4 bg-white/2 grid grid-cols-12 gap-4 h-full overflow-hidden relative animate-in fade-in zoom-in duration-300 w-full">
       <div className="hidden lg:flex col-span-3 flex-col gap-4 h-full z-40">
         <div
           className={`${glassPanel} h-70 shrink-0 flex flex-col p-1 overflow-hidden relative group`}
         >
           <div className="absolute top-3 left-3 z-30 flex items-center gap-2">
             <span
-              className={`w-1.5 h-1.5 rounded-full ${isVideoOn ? 'bg-red-500 animate-pulse shadow-[0_0_8px_red]' : 'bg-zinc-6
+              className={`w-1.5 h-1.5 rounded-full ${isVideoOn ? 'bg-red-500 animate-pulse shadow-[0_0_8px_red]' : 'bg-zinc-600'}`}
             />
             <span
               className={`text-[9px] font-bold tracking-widest ${isVideoOn ? 'text-red-400/80' : 'text-zinc-600'}`}
@@ -306,14 +321,14 @@ export default function DashboardView({
           {isVideoOn && (
             <button
               onClick={toggleSource}
-              className="absolute top-2 right-2 z-30 p-1.5 rounded-md bg-black/50 text-emerald-400 border border-emerald-500/
+              className="absolute top-2 right-2 z-30 p-1.5 rounded-md bg-black/50 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500 hover:text-black transition-all"
             >
               <RiSwapBoxLine size={14} />
             </button>
           )}
 
           <div
-            className={`w-full h-full rounded-xl overflow-hidden bg-black/20 relative border border-white/5 transition-all ${
+            className={`w-full h-full rounded-xl overflow-hidden bg-black/20 relative border border-white/5 transition-all ${isVideoOn ? 'opacity-100' : 'opacity-30'}`}
           >
             <video
               key={visionMode}
@@ -342,7 +357,7 @@ export default function DashboardView({
           className={`${glassPanel} h-32 shrink-0 p-4 flex flex-col justify-between relative overflow-hidden`}
         >
           <div
-            className={`absolute inset-0 bg-linear-to-r from-emerald-500/5 to-transparent transition-opacity duration-1000 ${
+            className={`absolute inset-0 bg-linear-to-r from-emerald-500/5 to-transparent transition-opacity duration-1000 ${isSystemActive ? 'opacity-100' : 'opacity-0'}`}
           />
 
           <div className="flex items-center justify-between border-b border-white/10 pb-2 relative z-10">
@@ -351,7 +366,7 @@ export default function DashboardView({
               NETWORK TELEMETRY
             </span>
             <span
-              className={`text-[8px] px-2 py-0.5 rounded-full font-mono font-bold border ${isSystemActive ? 'text-emerald-400
+              className={`text-[8px] px-2 py-0.5 rounded-full font-mono font-bold border ${isSystemActive ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-zinc-600 border-zinc-800 bg-zinc-900'}`}
             >
               {isSystemActive ? 'SECURE UPLINK' : 'STANDBY'}
             </span>
@@ -422,20 +437,20 @@ export default function DashboardView({
             {systemMetrics.map((m, i) => (
               <div
                 key={i}
-                className={`cursor-pointer relative rounded-xl p-3 flex flex-col justify-between border border-white/5 overfl
+                className={`cursor-pointer relative rounded-xl p-3 flex flex-col justify-between border border-white/5 overflow-hidden group hover:border-white/10 transition-all duration-300 bg-linear-to-br ${m.bgGradient}`}
               >
                 <div
-                  className={`absolute inset-0 ${m.pattern} opacity-30 group-hover:opacity-60 transition-opacity duration-500
+                  className={`absolute inset-0 ${m.pattern} opacity-30 group-hover:opacity-60 transition-opacity duration-500 pointer-events-none`}
                 />
 
                 <div
-                  className={`absolute -bottom-8 -right-8 opacity-[0.03] group-hover:opacity-[0.08] transition-all duration-5
+                  className={`absolute -bottom-8 -right-8 opacity-[0.03] group-hover:opacity-[0.08] transition-all duration-500 transform group-hover:scale-110 pointer-events-none ${m.colorClass}`}
                 >
                   {m.bgIcon}
                 </div>
 
                 <div
-                  className={`absolute top-0 left-0 w-full h-px bg-linear-to-r from-transparent ${m.glowClass} to-transparent
+                  className={`absolute top-0 left-0 w-full h-px bg-linear-to-r from-transparent ${m.glowClass} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
                 />
 
                 <div className="relative z-10 flex justify-between items-start text-zinc-500">
@@ -444,7 +459,7 @@ export default function DashboardView({
                   >
                     {m.icon}
                   </span>
-                  <span className="text-[8px] font-mono tracking-widest uppercase opacity-70 group-hover:opacity-100 transiti
+                  <span className="text-[8px] font-mono tracking-widest uppercase opacity-70 group-hover:opacity-100 transition-opacity text-zinc-300">
                     {m.label}
                   </span>
                 </div>
@@ -455,7 +470,7 @@ export default function DashboardView({
                   </span>
 
                   {!m.hideBar && (
-                    <div className="w-full h-1 bg-black/40 rounded-full overflow-hidden backdrop-blur-sm border border-white/
+                    <div className="w-full h-1 bg-black/40 rounded-full overflow-hidden backdrop-blur-sm border border-white/5">
                       <div
                         className={`h-full ${m.bgClass} ${m.shadowClass} transition-all duration-700 ease-out`}
                         style={{ width: isSystemActive ? `${m.raw}%` : '0%' }}
@@ -471,7 +486,7 @@ export default function DashboardView({
 
       <div className="col-span-12 lg:col-span-6 relative flex flex-col items-center justify-center">
         <div
-          className={`lg:hidden absolute top-4 right-4 w-32 h-24 ${glassPanel} z-50 overflow-hidden ${isVideoOn ? 'block' : 
+          className={`lg:hidden absolute top-4 right-4 w-32 h-24 ${glassPanel} z-50 overflow-hidden ${isVideoOn ? 'block' : 'hidden'}`}
         >
           <video
             ref={setMobileVideoRef}
@@ -483,31 +498,31 @@ export default function DashboardView({
         </div>
 
         <div
-          className={`w-[60vh] h-[60vh] max-w-full transition-all duration-1000 ${isSystemActive ? 'opacity-100 scale-100' : 
+          className={`w-[60vh] h-[60vh] max-w-full transition-all duration-1000 ${isSystemActive ? 'opacity-100 scale-100' : 'opacity-85 scale-90 grayscale'}`}
         >
           <Sphere />
         </div>
 
         <div className="absolute bottom-10 z-50">
           <div
-            className={`${glassPanel} px-6 py-3 rounded-full flex items-center gap-6 border border-emerald-500/20 shadow-[0_0
+            className={`${glassPanel} px-6 py-3 rounded-full flex items-center gap-6 border border-emerald-500/20 shadow-[0_0_30px_rgba(0,0,0,0.5)]`}
           >
             <button
               onClick={onVisionClick}
-              className={`cursor-pointer p-3 rounded-full transition-all ${isVideoOn ? 'bg-red-500/20 text-red-400' : 'hover:
+              className={`cursor-pointer p-3 rounded-full transition-all ${isVideoOn ? 'bg-red-500/20 text-red-400' : 'hover:bg-white/10 text-zinc-400'}`}
             >
               {isVideoOn ? <RiSwapBoxLine size={20} /> : <RiCameraLine size={20} />}
             </button>
             <button onClick={toggleSystem} className="relative group mx-2">
               <div
-                className={`cursor-pointer p-4 rounded-full border-2 transition-all duration-500 ${isSystemActive ? 'bg-emera
+                className={`cursor-pointer p-4 rounded-full border-2 transition-all duration-500 ${isSystemActive ? 'bg-emerald-500 border-emerald-400 text-black shadow-[0_0_20px_#10b981]' : 'bg-red-500/10 border-red-500/50 text-red-500'}`}
               >
                 <RiPhoneFill size={24} className={isSystemActive ? 'animate-pulse' : ''} />
               </div>
             </button>
             <button
               onClick={toggleMic}
-              className={`cursor-pointer p-3 rounded-full transition-all ${isMicMuted ? 'bg-red-500/20 text-red-400' : 'bg-em
+              className={`cursor-pointer p-3 rounded-full transition-all ${isMicMuted ? 'bg-red-500/20 text-red-400' : 'bg-emerald-500/10 text-emerald-400'}`}
             >
               {isMicMuted ? <RiMicOffLine size={20} /> : <RiMicLine size={20} />}
             </button>
@@ -538,7 +553,7 @@ export default function DashboardView({
                   className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
                 >
                   <div
-                    className={`max-w-[95%] py-2 px-3 rounded-lg text-[11px] leading-relaxed border font-mono font-semibold $
+                    className={`max-w-[95%] py-2 px-3 rounded-lg text-[11px] leading-relaxed border font-mono font-semibold ${msg.role === 'user' ? 'bg-emerald-900/20 border-emerald-500/20 text-emerald-100/90 rounded-br-none' : 'bg-zinc-900/50 border-white/5 text-zinc-400 rounded-bl-none'}`}
                   >
                     {msg.parts && msg.parts[0] ? msg.parts[0].text : msg.content}
                   </div>
@@ -548,6 +563,40 @@ export default function DashboardView({
           </div>
         </div>
       </div>
+
+      {isVideoOn && visionMode === 'screen' && activeStream && (
+        <div className="absolute bottom-6 right-6 z-50 w-[360px] rounded-2xl border border-cyan-500/20 bg-black/70 backdrop-blur-xl shadow-[0_0_40px_rgba(6,182,212,0.15)] overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+            <div>
+              <div className="text-[10px] text-cyan-400 tracking-[0.25em] font-bold">LIVE SCREEN SHARE</div>
+              <div className="text-xs text-zinc-400">Visible to you and SADIYA</div>
+            </div>
+            <button
+              onClick={props.stopVision}
+              className="px-3 py-2 rounded-lg bg-red-500/15 border border-red-500/20 text-red-300 text-[10px] font-bold tracking-widest"
+            >
+              STOP SHARE
+            </button>
+          </div>
+
+          <video
+            ref={screenPreviewRef}
+            muted
+            playsInline
+            className="w-full h-[220px] object-cover bg-black"
+          />
+
+          <div className="px-4 py-3 flex items-center justify-between text-[10px] text-zinc-400">
+            <span>SCREEN MODE ACTIVE</span>
+            <button
+              onClick={() => startVision('screen')}
+              className="text-cyan-400 hover:text-cyan-300 font-bold tracking-widest"
+            >
+              REFRESH
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

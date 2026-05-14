@@ -1,6 +1,6 @@
 export const ingestCodebase = async (dirPath: string): Promise<string> => {
   try {
-    const geminiKey = localStorage.getItem('iris_custom_api_key') || ''
+    const geminiKey = localStorage.getItem('SADIYA_custom_api_key') || ''
 
     if (!geminiKey.trim()) {
       throw new Error('Missing Gemini API Key. Please update it in the Command Center Vault.')
@@ -28,20 +28,20 @@ export const ingestCodebase = async (dirPath: string): Promise<string> => {
         new CustomEvent('oracle-ingest-done', { detail: { chunks: result.totalChunks } })
       )
       const msg = result.wasResumed
-        ? `  Successfully resumed and completed ingestion. Memory Banks fully loaded.`
-        : `  Successfully ingested directory. Generated ${result.totalChunks} vectors.`
+        ? `✅ Successfully resumed and completed ingestion. Memory Banks fully loaded.`
+        : `✅ Successfully ingested directory. Generated ${result.totalChunks} vectors.`
       return msg
     }
-    return `  Ingestion Aborted or Failed: ${result.error}`
+    return `❌ Ingestion Aborted or Failed: ${result.error}`
   } catch (error) {
-    return `  System failure: ${String(error)}`
+    return `❌ System failure: ${String(error)}`
   }
 }
 
 export const consultOracle = async (query: string): Promise<string> => {
   try {
-    const geminiKey = localStorage.getItem('iris_custom_api_key') || ''
-    const groqKey = localStorage.getItem('iris_groq_api_key') || ''
+    const geminiKey = localStorage.getItem('SADIYA_custom_api_key') || ''
+    const groqKey = localStorage.getItem('SADIYA_groq_api_key') || ''
 
     if (!geminiKey.trim() || !groqKey.trim()) {
       throw new Error(
@@ -63,9 +63,9 @@ export const consultOracle = async (query: string): Promise<string> => {
       )
       return `Code Analysis:\n${result.answer}`
     }
-    return `  AI failed: ${result.error}`
+    return `❌ AI failed: ${result.error}`
   } catch (error) {
-    return `  System failure: ${String(error)}`
+    return `❌ System failure: ${String(error)}`
   }
 }
 

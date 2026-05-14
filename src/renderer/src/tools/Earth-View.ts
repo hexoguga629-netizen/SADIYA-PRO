@@ -6,7 +6,7 @@ export const handleOpenMap = async (location: string) => {
     const geoUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(location)}`
     const res = await axios.get(geoUrl)
 
-    if (!res.data || res.data.length === 0) return '  Location not found.'
+    if (!res.data || res.data.length === 0) return '❌ Location not found.'
 
     const { lat, lon, display_name } = res.data[0]
 
@@ -21,7 +21,7 @@ export const handleOpenMap = async (location: string) => {
 
     return `Opening secure map view of ${display_name.split(',')[0]}.`
   } catch (e) {
-    return '  Map system offline.'
+    return '❌ Map system offline.'
   }
 }
 
@@ -31,7 +31,7 @@ export const handleNavigation = async (origin: string, destination: string) => {
     const res1 = await axios.get(
       `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(origin)}`
     )
-    if (!res1.data.length) return `  Could not find: ${origin}`
+    if (!res1.data.length) return `❌ Could not find: ${origin}`
     const start = {
       lat: parseFloat(res1.data[0].lat),
       lon: parseFloat(res1.data[0].lon),
@@ -41,17 +41,17 @@ export const handleNavigation = async (origin: string, destination: string) => {
     const res2 = await axios.get(
       `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(destination)}`
     )
-    if (!res2.data.length) return `  Could not find: ${destination}`
+    if (!res2.data.length) return `❌ Could not find: ${destination}`
     const end = {
       lat: parseFloat(res2.data[0].lat),
       lon: parseFloat(res2.data[0].lon),
       name: res2.data[0].display_name.split(',')[0]
     }
 
-    const routeUrl = `http://router.project-osrm.org/route/v1/driving/${start.lon},${start.lat};${end.lon},${end.lat}?overview
+    const routeUrl = `http://router.project-osrm.org/route/v1/driving/${start.lon},${start.lat};${end.lon},${end.lat}?overview=full&geometries=geojson`
     const routeRes = await axios.get(routeUrl)
 
-    if (!routeRes.data.routes || routeRes.data.routes.length === 0) return '  No route found.'
+    if (!routeRes.data.routes || routeRes.data.routes.length === 0) return '❌ No route found.'
 
     const route = routeRes.data.routes[0]
     const distanceKm = (route.distance / 1000).toFixed(1)
@@ -74,8 +74,8 @@ export const handleNavigation = async (origin: string, destination: string) => {
     })
     window.dispatchEvent(event)
 
-    return `Route calculated. Distance: ${distanceKm} km. Est. Time: ${Math.floor(durationMin / 60)} hours ${durationMin % 60}
+    return `Route calculated. Distance: ${distanceKm} km. Est. Time: ${Math.floor(durationMin / 60)} hours ${durationMin % 60} minutes.`
   } catch (e) {
-    return '  Navigation system offline.'
+    return '❌ Navigation system offline.'
   }
 }

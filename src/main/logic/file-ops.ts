@@ -20,6 +20,10 @@ export default function registerFileOps(ipcMain: IpcMain) {
           await fs.rm(sourcePath, { recursive: true, force: true })
           return `Success: Deleted ${sourcePath}`
 
+        case 'create':
+          await fs.mkdir(sourcePath, { recursive: true })
+          return `Success: Created folder at ${sourcePath}`
+
         default:
           return `Error: Unknown operation '${operation}'`
       }
@@ -28,3 +32,4 @@ export default function registerFileOps(ipcMain: IpcMain) {
     }
   })
 }
+

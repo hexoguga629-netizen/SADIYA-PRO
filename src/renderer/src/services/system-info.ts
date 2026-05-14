@@ -5,20 +5,7 @@ export interface SystemStats {
     free: string
     usedPercentage: string
   }
-  temperature: number | null
-  network: {
-    down: number
-    up: number
-  }
-  battery: {
-    percent: number
-    charging: boolean
-  }
-  disk: {
-    percent: number
-    usedGB: number
-    totalGB: number
-  }
+  temperature: number
   os: {
     type: string
     uptime: string
@@ -47,7 +34,7 @@ export const getAllApps = async (): Promise<AppItem[]> => {
   }
 }
 
-export const getDrives = async (): Promise<{ Name: string; FreeGB: number; UsedGB: number }[]> => {
+export const getDrives = async (): Promise<any[]> => {
   try {
     return await window.electron.ipcRenderer.invoke('get-drives')
   } catch (error) {

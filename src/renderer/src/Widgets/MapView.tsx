@@ -62,8 +62,8 @@ export default function LeafletMapWidget() {
   if (!isVisible) return null
 
   return (
-    <div className="fixed inset-0 z-9000 flex items-center justify-center bg-black/80 backdrop-blur-md p-10 animate-in fade-i
-      <div className="relative w-full h-full max-w-6xl max-h-[85vh] border-2 border-cyan-500/40 rounded-3xl overflow-hidden s
+    <div className="fixed inset-0 z-9000 flex items-center justify-center bg-black/80 backdrop-blur-md p-10 animate-in fade-in zoom-in duration-300">
+      <div className="relative w-full h-full max-w-6xl max-h-[85vh] border-2 border-cyan-500/40 rounded-3xl overflow-hidden shadow-[0_0_80px_rgba(6,182,212,0.2)]">
         <div className="absolute top-0 left-0 w-full z-1000 p-4 flex justify-between items-start pointer-events-none">
           <div className="bg-black/90 border border-cyan-500/50 px-4 py-2 rounded-lg pointer-events-auto">
             {isRouteMode && routeData ? (
@@ -84,7 +84,7 @@ export default function LeafletMapWidget() {
           </div>
           <button
             onClick={() => setIsVisible(false)}
-            className="bg-red-500/20 hover:bg-red-500 text-red-500 hover:text-white border border-red-500 px-4 py-2 rounded-l
+            className="bg-red-500/20 hover:bg-red-500 text-red-500 hover:text-white border border-red-500 px-4 py-2 rounded-lg font-bold pointer-events-auto"
           >
             CLOSE
           </button>

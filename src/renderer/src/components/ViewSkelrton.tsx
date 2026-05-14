@@ -3,8 +3,8 @@ import { RiLoader4Line } from 'react-icons/ri'
 const ViewSkeleton = () => {
   return (
     <div className="w-full h-full p-8 animate-in fade-in duration-500">
-      <div className="w-full h-full bg-zinc-950/40 backdrop-blur-xl border border-white/5 rounded-2xl shadow-xl p-6 flex flex-
-        <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-linear-to-r from-transparent via-w
+      <div className="w-full h-full bg-zinc-950/40 backdrop-blur-xl border border-white/5 rounded-2xl shadow-xl p-6 flex flex-col gap-6 relative overflow-hidden">
+        <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-linear-to-r from-transparent via-white/5 to-transparent z-10" />
 
         <div className="flex items-center gap-4 border-b border-white/5 pb-6">
           <div className="w-12 h-12 rounded-xl bg-white/5 animate-pulse" />

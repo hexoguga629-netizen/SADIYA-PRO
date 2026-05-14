@@ -17,7 +17,7 @@ export default function registerFileScanner(ipcMain: IpcMain) {
   ipcMain.handle('get-running-apps', async () => {
     try {
       if (os.platform() === 'win32') {
-        const cmd = `powershell "Get-Process | Where-Object {$_.MainWindowTitle -ne ''} | Select-Object -ExpandProperty Proces`
+        const cmd = `powershell "Get-Process | Where-Object {$_.MainWindowTitle -ne ''} | Select-Object -ExpandProperty ProcessName"`
         const output = await runCommand(cmd)
         const apps = output
           .split(/\r?\n/)
@@ -27,7 +27,7 @@ export default function registerFileScanner(ipcMain: IpcMain) {
       }
 
       if (os.platform() === 'darwin') {
-        const cmd = `osascript -e 'tell application "System Events" to get name of (processes where background only is false)`
+        const cmd = `osascript -e 'tell application "System Events" to get name of (processes where background only is false)'`
         const output = await runCommand(cmd)
         return output.split(', ').map((s) => s.trim())
       }
@@ -38,3 +38,4 @@ export default function registerFileScanner(ipcMain: IpcMain) {
     }
   })
 }
+

@@ -5,9 +5,9 @@ export const readGalleryImages = async () => {
 
     return images
       .slice(0, 25)
-      .map((img) => `   Name: "${img.displayName}" | Path: ${img.path}`)
+      .map((img) => `🖼️ Name: "${img.displayName}" | Path: ${img.path}`)
       .join('\n')
-  } catch (e) {
+  } catch {
     return 'System Error: Could not access Visual Vault.'
   }
 }
@@ -16,29 +16,46 @@ export const analyzeDirectPhoto = async (filePath: string, socket: WebSocket | n
   try {
     const url = `file:///${filePath.replace(/\\/g, '/')}`
     const res = await fetch(url)
-    const blob = await res.blob()
-    const reader = new FileReader()
+    if (!res.ok) return '❌ Error loading image file.'
 
-    return new Promise((resolve) => {
+    const blob = await res.blob()
+
+    return new Promise<string>((resolve) => {
+      const reader = new FileReader()
+
       reader.onloadend = () => {
-        const base64data = (reader.result as string).split(',')[1]
+        const result = String(reader.result || '')
+        const base64data = result.includes(',') ? result.split(',')[1] : ''
+
+        if (!base64data) {
+          resolve('❌ Could not encode image.')
+          return
+        }
 
         if (socket && socket.readyState === WebSocket.OPEN) {
           socket.send(
             JSON.stringify({
-              realtimeInput: { mediaChunks: [{ mimeType: 'image/png', data: base64data }] }
+              realtimeInput: {
+                mediaChunks: [
+                  {
+                    mimeType: 'image/png',
+                    data: base64data
+                  }
+                ]
+              }
             })
           )
-          resolve(
-            '  Photo successfully injected into your vision. You can now see it. Describe what you see to Harsh.'
-          )
+
+          resolve('✅ Photo injected into vision stream.')
         } else {
-          resolve('  Failed: Connection not open.')
+          resolve('❌ Failed: vision socket not connected.')
         }
       }
+
+      reader.onerror = () => resolve('❌ Error reading image.')
       reader.readAsDataURL(blob)
     })
-  } catch (e) {
-    return '  Error loading direct photo.'
+  } catch {
+    return '❌ Error loading direct photo.'
   }
 }

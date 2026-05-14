@@ -49,7 +49,7 @@ export default function ToolNode({ data, id }: any) {
 
   return (
     <div
-      className="bg-[#18181b] border border-[#27272a] rounded-lg shadow-xl min-w-50 max-w-62.5 font-sans text-zinc-100 group 
+      className="bg-[#18181b] border border-[#27272a] rounded-lg shadow-xl min-w-50 max-w-62.5 font-sans text-zinc-100 group transition-all hover:border-emerald-500/50 relative"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >

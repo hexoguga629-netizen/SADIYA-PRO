@@ -27,7 +27,7 @@ export default function registerWormhole({ ipcMain }: { ipcMain: IpcMain }) {
         model: 'stabilityai/stable-diffusion-xl-base-1.0',
         inputs: prompt
       })
-      const buffer = Buffer.from(await (image as Blob).arrayBuffer())
+      const buffer = Buffer.from(await (image as unknown as Blob).arrayBuffer())
       return { success: true, image: `data:image/png;base64,${buffer.toString('base64')}` }
     } catch (e) {
       return { success: false, error: String(e) }

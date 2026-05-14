@@ -12,7 +12,7 @@ export const fetchWeather = async (city: string) => {
     const location = geoData.results[0]
 
     const weatherRes = await fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${location.latitude}&longitude=${location.longitude}&current=temperatur
+      `https://api.open-meteo.com/v1/forecast?latitude=${location.latitude}&longitude=${location.longitude}&current=temperature_2m,relative_humidity_2m,is_day,precipitation,weather_code,wind_speed_10m&timezone=auto`
     )
     const weatherData = await weatherRes.json()
     const current = weatherData.current
@@ -38,7 +38,7 @@ export const fetchWeather = async (city: string) => {
     const event = new CustomEvent('show-weather', { detail: finalData })
     window.dispatchEvent(event)
 
-    return `The current weather in ${finalData.city} is ${finalData.temperature}°C with ${finalData.condition} conditions. Win
+    return `The current weather in ${finalData.city} is ${finalData.temperature}°C with ${finalData.condition} conditions. Wind speed is ${finalData.windSpeed} km/h.`
   } catch (error: any) {
     return `Failed to get weather: ${error.message}`
   }

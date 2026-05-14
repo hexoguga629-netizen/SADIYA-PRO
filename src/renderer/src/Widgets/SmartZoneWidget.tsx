@@ -119,14 +119,14 @@ export default function SmartDropZonesWidget() {
   ]
 
   return (
-    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/80 backdrop-blur-md p-8 animate-in fade-in
+    <div className="fixed inset-0 z-9999 flex items-center justify-center bg-black/80 backdrop-blur-md p-8 animate-in fade-in duration-200">
       <AnimatePresence>
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 10 }}
           transition={{ type: 'spring', damping: 25, stiffness: 400 }}
-          className="w-full max-w-3xl bg-[#050505] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-co
+          className="w-full max-w-3xl bg-[#050505] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col relative"
         >
           <motion.div
             className="absolute top-0 left-0 h-1 bg-white z-10"
@@ -173,14 +173,14 @@ export default function SmartDropZonesWidget() {
                     key={folder.id}
                     animate={isTargeted ? { scale: 1.05, y: -5 } : { scale: 1, y: 0 }}
                     transition={{ type: 'spring', stiffness: 500, damping: 15 }}
-                    className={`w-40 h-32 rounded-xl border flex flex-col items-center justify-center gap-3 transition-colors
+                    className={`w-40 h-32 rounded-xl border flex flex-col items-center justify-center gap-3 transition-colors duration-200
                       ${isTargeted ? `${folder.bg} ${folder.border}` : 'bg-black/40 border-white/5 opacity-50'}`}
                   >
                     <folder.icon
                       className={`w-8 h-8 ${isTargeted ? folder.color : 'text-zinc-600'}`}
                     />
                     <span
-                      className={`text-[10px] font-bold tracking-widest uppercase ${isTargeted ? 'text-white' : 'text-zinc-60
+                      className={`text-[10px] font-bold tracking-widest uppercase ${isTargeted ? 'text-white' : 'text-zinc-600'}`}
                     >
                       {folder.label}
                     </span>
@@ -203,7 +203,7 @@ export default function SmartDropZonesWidget() {
 
             <div
               ref={terminalRef}
-              className="bg-[#0a0a0a] border border-zinc-800 rounded-xl p-4 h-40 overflow-hidden relative font-mono text-[11p
+              className="bg-[#0a0a0a] border border-zinc-800 rounded-xl p-4 h-40 overflow-hidden relative font-mono text-[11px]"
             >
               {logStream.map((log, i) => (
                 <motion.div

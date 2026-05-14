@@ -156,17 +156,17 @@ export default function OracleWidget() {
   const isPaused = status === 'cancelled' || status === 'done'
 
   return (
-    <div className="absolute inset-0 z-999 flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in d
+    <div className="absolute inset-0 z-999 flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-300 p-8">
       <AnimatePresence>
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="w-full max-w-4xl bg-[#050505] border border-emerald-500/30 rounded-2xl shadow-[0_0_100px_rgba(16,185,129
+          className="w-full max-w-4xl bg-[#050505] border border-emerald-500/30 rounded-2xl shadow-[0_0_100px_rgba(16,185,129,0.15)] overflow-hidden flex flex-col relative"
         >
           <motion.div
-            className={`absolute top-0 left-0 h-0.5 z-10 transition-colors ${status === 'cancelled' ? 'bg-red-500' : 'bg-emer
+            className={`absolute top-0 left-0 h-0.5 z-10 transition-colors ${status === 'cancelled' ? 'bg-red-500' : 'bg-emerald-500'}`}
             initial={{ width: '0%' }}
             animate={{
               width:
@@ -198,7 +198,7 @@ export default function OracleWidget() {
               {status === 'done' && <CheckCircle2 className="w-6 h-6 text-emerald-400" />}
               {status === 'cancelled' && <Octagon className="w-6 h-6 text-red-500" />}
               <span
-                className={`text-base font-black tracking-[0.2em] uppercase ${status === 'cancelled' ? 'text-red-500' : 'text
+                className={`text-base font-black tracking-[0.2em] uppercase ${status === 'cancelled' ? 'text-red-500' : 'text-emerald-400'}`}
               >
                 {status === 'scanning'
                   ? 'Scanning Folders'
@@ -232,7 +232,7 @@ export default function OracleWidget() {
                   <button
                     onClick={handleStop}
                     disabled={isPaused}
-                    className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-black tracking-widest transition-
+                    className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-black tracking-widest transition-all shadow-lg ${isPaused ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 shadow-[0_0_15px_rgba(239,68,68,0.1)] hover:shadow-[0_0_20px_rgba(239,68,68,0.3)]'}`}
                   >
                     <Octagon className="w-4 h-4" />
                     {isPaused ? 'PAUSED' : 'STOP SCAN'}
@@ -243,7 +243,7 @@ export default function OracleWidget() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Activity
-                        className={`w-5 h-5 ${status === 'ingesting' && !isPaused ? 'text-emerald-400 animate-pulse' : 'text-
+                        className={`w-5 h-5 ${status === 'ingesting' && !isPaused ? 'text-emerald-400 animate-pulse' : 'text-emerald-500/50'}`}
                       />
                       <span className="text-[10px] font-bold tracking-widest text-emerald-500 uppercase">
                         {status === 'scanning'
@@ -264,7 +264,7 @@ export default function OracleWidget() {
                   </div>
                   <div className="w-full h-3 bg-zinc-900 rounded-full overflow-hidden border border-zinc-800 relative">
                     <motion.div
-                      className="h-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)] rounded-full absolute top-0 lef
+                      className="h-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)] rounded-full absolute top-0 left-0"
                       initial={{ width: 0 }}
                       animate={{ width: `${percentRaw}%` }}
                       transition={{ ease: 'easeInOut', duration: 0.3 }}
@@ -282,7 +282,7 @@ export default function OracleWidget() {
 
                 <div
                   ref={terminalRef}
-                  className="bg-[#0a0a0a] border border-zinc-800 rounded-xl p-6 h-45 overflow-y-auto relative font-mono text-
+                  className="bg-[#0a0a0a] border border-zinc-800 rounded-xl p-6 h-45 overflow-y-auto relative font-mono text-sm scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent"
                 >
                   {logStream.map((log, i) => (
                     <motion.div
@@ -339,7 +339,7 @@ export default function OracleWidget() {
                   {message}
                 </p>
                 <div
-                  className={`mt-8 text-sm font-mono flex flex-col items-center gap-2 ${status === 'cancelled' ? 'text-red-50
+                  className={`mt-8 text-sm font-mono flex flex-col items-center gap-2 ${status === 'cancelled' ? 'text-red-500/50' : 'text-emerald-500/50'}`}
                 >
                   {logStream.slice(-3).map((log, idx) => (
                     <span key={idx} className={status === 'thinking' ? 'animate-pulse' : ''}>
@@ -367,12 +367,12 @@ const StatBox = ({
   animate = false
 }: any) => (
   <div
-    className={`flex flex-col justify-center p-5 rounded-xl border ${animate ? 'border-emerald-500/20 bg-emerald-500/5' : 'bg
+    className={`flex flex-col justify-center p-5 rounded-xl border ${animate ? 'border-emerald-500/20 bg-emerald-500/5' : 'bg-black/40 border-white/5'}`}
   >
     <div className="flex items-center gap-2 mb-3">
       <Icon className={`w-4 h-4 ${iconColor}`} />
       <span
-        className={`text-xs font-bold tracking-widest uppercase ${iconColor.replace('text-', 'text-').replace('500', '500/70
+        className={`text-xs font-bold tracking-widest uppercase ${iconColor.replace('text-', 'text-').replace('500', '500/70')}`}
       >
         {label}
       </span>

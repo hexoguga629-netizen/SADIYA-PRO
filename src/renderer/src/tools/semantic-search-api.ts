@@ -5,7 +5,7 @@ export const runIndexDirectory = async (folderPath: string) => {
     )
     const result = await window.electron.ipcRenderer.invoke('index-folder', folderPath)
     window.dispatchEvent(
-      new CustomEvent('semantic-done', { detail: { success: !result.includes(' '), result } })
+      new CustomEvent('semantic-done', { detail: { success: !result.includes('❌'), result } })
     )
     return result
   } catch (err) {
@@ -20,7 +20,7 @@ export const runSmartSearch = async (query: string) => {
       new CustomEvent('semantic-start', { detail: { mode: 'Search', target: query } })
     )
 
-    const groqKey = localStorage.getItem('iris_groq_api_key') || ''
+    const groqKey = localStorage.getItem('SADIYA_groq_api_key') || ''
 
     if (!groqKey.trim()) {
       throw new Error(
@@ -31,7 +31,7 @@ export const runSmartSearch = async (query: string) => {
     const result = await window.electron.ipcRenderer.invoke('search-files', { query, groqKey })
 
     window.dispatchEvent(
-      new CustomEvent('semantic-done', { detail: { success: !result.includes(' '), result } })
+      new CustomEvent('semantic-done', { detail: { success: !result.includes('❌'), result } })
     )
     return result
   } catch (err) {
