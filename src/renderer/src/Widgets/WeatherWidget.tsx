@@ -86,16 +86,16 @@ export default function WeatherWidget() {
   }
 
   return (
-    <div className="fixed inset-0 z-9050 flex items-center justify-center p-10 bg-black/80 backdrop-blur-sm animate-in fade-i
+    <div className="fixed inset-0 z-9050 flex items-center justify-center p-10 bg-black/80 backdrop-blur-sm animate-in fade-in duration-500">
       <motion.div
         initial={{ scale: 0.9, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        className={`relative w-full max-w-3xl aspect-2/1 rounded-3xl overflow-hidden shadow-2xl bg-linear-to-br ${bgGradient}
+        className={`relative w-full max-w-3xl aspect-2/1 rounded-3xl overflow-hidden shadow-2xl bg-linear-to-br ${bgGradient} transition-all duration-1000`}
       >
         <button
           onClick={() => setIsVisible(false)}
-          className="absolute top-6 right-6 z-50 p-3 bg-black/20 hover:bg-black/40 backdrop-blur-md rounded-full text-white t
+          className="absolute top-6 right-6 z-50 p-3 bg-black/20 hover:bg-black/40 backdrop-blur-md rounded-full text-white transition-all"
         >
           <RiCloseLine size={24} />
         </button>
@@ -112,7 +112,7 @@ export default function WeatherWidget() {
         </motion.div>
 
         {weather.condition === 'Rain' && (
-          <div className="absolute inset-0 opacity-30 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] m
+          <div className="absolute inset-0 opacity-30 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] mix-blend-overlay animate-pulse" />
         )}
 
         <div className="absolute inset-0 z-10 p-12 flex flex-col justify-between">

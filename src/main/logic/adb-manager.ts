@@ -6,18 +6,7 @@ import path from 'path'
 
 const execAsync = util.promisify(exec)
 
-const IP_RE = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/
-const PORT_RE = /^\d{1,5}$/
-const PKG_RE = /^[a-zA-Z0-9_.]+$/
-const SHELL_META = /[;&|`$(){}\[\]!#~<>"'\\\n\r]/
-
-function validateIpPort(ip: string, port: string): string | null {
-  if (!IP_RE.test(ip)) return 'Invalid IP address'
-  if (!PORT_RE.test(port) || parseInt(port) > 65535) return 'Invalid port'
-  return null
-}
-
-let activeDevice: { ip: string; port: string } | null = null
+let activeDevice: { ip: string; port: string } | any | null = null
 
 export default function registerAdbHandlers(ipcMain: IpcMain) {
   const dirPath = path.join(app.getPath('userData'), 'Connected Devices')
@@ -58,8 +47,6 @@ export default function registerAdbHandlers(ipcMain: IpcMain) {
 
   ipcMain.removeHandler('adb-connect')
   ipcMain.handle('adb-connect', async (_, { ip, port }) => {
-    const err = validateIpPort(ip, port)
-    if (err) return { success: false, error: err }
     try {
       const { stdout } = await execAsync(`adb connect ${ip}:${port}`)
 
@@ -208,7 +195,6 @@ export default function registerAdbHandlers(ipcMain: IpcMain) {
         return { success: true }
       }
 
-      if (!PKG_RE.test(packageName)) return { success: false, error: 'Invalid package name' }
       await execAsync(
         `adb ${target} shell monkey -p ${packageName} -c android.intent.category.LAUNCHER 1`
       )
@@ -230,7 +216,6 @@ export default function registerAdbHandlers(ipcMain: IpcMain) {
         return { success: true }
       }
 
-      if (!PKG_RE.test(packageName)) return { success: false, error: 'Invalid package name' }
       await execAsync(`adb ${target} shell am force-stop ${packageName}`)
       return { success: true }
     } catch (e: any) {
@@ -346,7 +331,6 @@ export default function registerAdbHandlers(ipcMain: IpcMain) {
     if (!activeDevice) return { success: false, error: 'No phone connected.' }
     try {
       const target = `-s ${activeDevice.ip}:${activeDevice.port}`
-      if (SHELL_META.test(sourcePath) || SHELL_META.test(destPath)) return { success: false, error: 'Invalid path' }
       await execAsync(`adb ${target} push "${sourcePath}" "${destPath}"`)
       return { success: true }
     } catch (e: any) {
@@ -362,7 +346,6 @@ export default function registerAdbHandlers(ipcMain: IpcMain) {
 
       const finalDest = destPath || path.join(app.getPath('downloads'))
 
-      if (SHELL_META.test(sourcePath) || SHELL_META.test(finalDest)) return { success: false, error: 'Invalid path' }
       await execAsync(`adb ${target} pull "${sourcePath}" "${finalDest}"`)
       return { success: true, savedTo: finalDest }
     } catch (e: any) {
@@ -438,3 +421,4 @@ export default function registerAdbHandlers(ipcMain: IpcMain) {
     }
   })
 }
+

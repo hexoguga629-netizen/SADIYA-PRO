@@ -41,7 +41,7 @@ export const fetchStockData = async (ticker: string) => {
     }
 
     window.dispatchEvent(new CustomEvent('show-stock', { detail: finalData }))
-    return `The current stock price of ${ticker} is ${finalData.currentPrice1}. It is ${finalData.isPositive1 ? 'up' : 'down
+    return `The current stock price of ${ticker} is ${finalData.currentPrice1}. It is ${finalData.isPositive1 ? 'up' : 'down'} by ${Math.abs(Number(finalData.percentChange1))}% today.`
   } catch (error: any) {
     return `Failed to fetch data for ${ticker}.`
   }
@@ -99,7 +99,7 @@ export const compareStocks = async (ticker1: string, ticker2: string) => {
     }
 
     window.dispatchEvent(new CustomEvent('show-stock', { detail: finalData }))
-    return `Comparing ${ticker1} and ${ticker2}. ${ticker1} is at ${finalData.currentPrice1}, and ${ticker2} is at ${finalDat
+    return `Comparing ${ticker1} and ${ticker2}. ${ticker1} is at ${finalData.currentPrice1}, and ${ticker2} is at ${finalData.currentPrice2}.`
   } catch (error: any) {
     return `Comparison failed. Please verify tickers ${ticker1} and ${ticker2}.`
   }

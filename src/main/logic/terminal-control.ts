@@ -3,6 +3,7 @@ import { spawn } from 'child_process'
 import path from 'path'
 
 export default function registerSystemControl(ipcMain: IpcMain) {
+
   const sanitizePath = (inputPath: string) => {
     let clean = path.normalize(inputPath)
     if (clean.endsWith(path.sep)) clean = clean.slice(0, -1)
@@ -12,25 +13,35 @@ export default function registerSystemControl(ipcMain: IpcMain) {
   ipcMain.handle('run-shell-command', async (_event, { command, cwd }) => {
     return new Promise((resolve) => {
       const safeCwd = cwd ? sanitizePath(cwd) : undefined
+
       const win = BrowserWindow.getAllWindows()[0]
+
       const child = spawn('powershell.exe', ['-Command', command], {
         cwd: safeCwd,
-        shell: true
+        stdio: ['ignore', 'pipe', 'pipe'] 
       })
-      let output = ''
-      child.stdout.on('data', (data: Buffer) => {
-        const text = data.toString()
-        output += text
-        if (win) win.webContents.send('terminal-data', text)
+
+      child.stdout.on('data', (data) => {
+        const output = data.toString()
+        if (win) win.webContents.send('terminal-data', output)
       })
-      child.stderr.on('data', (data: Buffer) => {
-        const text = data.toString()
-        output += text
-        if (win) win.webContents.send('terminal-data', text)
+
+      child.stderr.on('data', (data) => {
+        const output = data.toString()
+        if (win) win.webContents.send('terminal-data', `\x1b[31m${output}\x1b[0m`)
       })
-      child.on('close', (code: number) => {
-        resolve({ output, exitCode: code })
+
+      child.on('close', (code) => {
+        const msg = `\r\n[Process exited with code ${code}]\r\n`
+        if (win) win.webContents.send('terminal-data', msg)
+        resolve({ success: code === 0, output: `Completed with code ${code}` })
+      })
+
+      child.on('error', (err) => {
+        if (win) win.webContents.send('terminal-data', `Error: ${err.message}`)
+        resolve({ success: false, output: err.message })
       })
     })
   })
 }
+

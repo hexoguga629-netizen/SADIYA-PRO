@@ -25,8 +25,8 @@ export default function WormholeWidget() {
   if (!isVisible) return null
 
   return (
-    <div className="absolute inset-0 z-999 flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in du
-      <div className="w-full max-w-3xl bg-[#050505] border border-emerald-500/30 rounded-2xl shadow-[0_0_80px_rgba(16,185,129,
+    <div className="absolute inset-0 z-999 flex items-center justify-center bg-black/80 backdrop-blur-md animate-in fade-in duration-300 p-8">
+      <div className="w-full max-w-3xl bg-[#050505] border border-emerald-500/30 rounded-2xl shadow-[0_0_80px_rgba(16,185,129,0.15)] overflow-hidden flex flex-col relative">
         <div className="h-14 bg-emerald-500/10 border-b border-emerald-500/20 flex items-center justify-between px-6">
           <div className="flex items-center gap-3">
             <CloudLightning className="w-5 h-5 text-emerald-400 animate-pulse" />
@@ -69,7 +69,7 @@ export default function WormholeWidget() {
                 href={url}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-start justify-between gap-4 p-4 bg-black/50 border border-white/10 rounded-xl hover:bord
+                className="flex items-start justify-between gap-4 p-4 bg-black/50 border border-white/10 rounded-xl hover:border-emerald-500/50 transition-colors group cursor-pointer shadow-inner w-full"
               >
                 <span className="text-sm font-mono text-emerald-300 break-all leading-relaxed">
                   {url}
@@ -79,7 +79,7 @@ export default function WormholeWidget() {
             </div>
 
             <div className="flex items-center gap-3 mt-auto">
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]"></
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]"></div>
               <span className="text-xs font-mono text-emerald-500/70 uppercase tracking-widest">
                 Connection Stable
               </span>

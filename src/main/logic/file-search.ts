@@ -1,118 +1,209 @@
-import { IpcMain } from 'electron'
+import { IpcMain, app } from 'electron'
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
 
+let pipeline: any = null
+let lancedb: any = null
+
+const MODEL_NAME = 'Xenova/all-MiniLM-L6-v2'
+const DB_FOLDER = 'SADIYA_semantic_db'
+
+const VALID_EXTENSIONS = new Set([
+  '.txt',
+  '.md',
+  '.js',
+  '.ts',
+  '.tsx',
+  '.jsx',
+  '.json',
+  '.py',
+  '.html',
+  '.css',
+  '.log',
+  '.csv'
+])
+
+const IGNORE_FOLDERS = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  'build',
+  'coverage',
+  'windows',
+  'system volume information',
+  '$recycle.bin',
+  'appdata',
+  'program files'
+])
+
+async function loadDeps() {
+  if (!pipeline) {
+    const mod = await import('@xenova/transformers')
+    pipeline = mod.pipeline
+  }
+
+  if (!lancedb) {
+    lancedb = await import('vectordb')
+  }
+}
+
+async function embedText(text: string): Promise<number[]> {
+  await loadDeps()
+  const extractor = await pipeline('feature-extraction', MODEL_NAME)
+  const output = await extractor(text.slice(0, 2000), {
+    pooling: 'mean',
+    normalize: true
+  })
+  return Array.from(output.data)
+}
+
+function isHiddenOrIgnored(name: string) {
+  const lower = name.toLowerCase()
+  return lower.startsWith('.') || lower.startsWith('$') || IGNORE_FOLDERS.has(lower)
+}
+
+async function scanFolderForFiles(root: string): Promise<string[]> {
+  const files: string[] = []
+  const queue = [path.resolve(root)]
+  const visited = new Set<string>()
+
+  while (queue.length > 0) {
+    const current = queue.shift()
+    if (!current || visited.has(current)) continue
+    visited.add(current)
+
+    let entries: fs.Dirent[]
+    try {
+      entries = await fs.promises.readdir(current, { withFileTypes: true })
+    } catch {
+      continue
+    }
+
+    for (const entry of entries) {
+      const fullPath = path.join(current, entry.name)
+
+      if (entry.isDirectory()) {
+        if (isHiddenOrIgnored(entry.name)) continue
+        queue.push(fullPath)
+      } else if (entry.isFile()) {
+        const ext = path.extname(entry.name).toLowerCase()
+        if (VALID_EXTENSIONS.has(ext)) files.push(fullPath)
+      }
+    }
+  }
+
+  return files
+}
+
 export default function registerFileSearch(ipcMain: IpcMain) {
-  ipcMain.removeHandler('search-files')
-  ipcMain.handle('search-files', async (_e, { query, directory, extensions }) => {
+  ipcMain.removeHandler('index-folder')
+  ipcMain.handle('index-folder', async (event, folderPath: string) => {
     try {
-      const searchDir = directory || os.homedir()
-      const results: { name: string; path: string; size: number; modified: Date; type: string }[] = []
-      const maxResults = 100
-      const exts = extensions ? extensions.split(',').map((e: string) => e.trim().toLowerCase()) : null
+      if (!folderPath) return '❌ Folder path missing.'
 
-      const search = (dir: string, depth: number) => {
-        if (depth > 5 || results.length >= maxResults) return
+      event.sender.send('semantic-progress', {
+        status: 'booting',
+        text: 'Initializing vector engine...',
+        progress: 10
+      })
+
+      await loadDeps()
+
+      const dbPath = path.join(app.getPath('userData'), DB_FOLDER)
+      const db = await lancedb.connect(dbPath)
+
+      event.sender.send('semantic-progress', {
+        status: 'scanning',
+        text: 'Scanning folder...',
+        progress: 30
+      })
+
+      const files = await scanFolderForFiles(folderPath)
+      const records: any[] = []
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+
         try {
-          const entries = fs.readdirSync(dir, { withFileTypes: true })
-          for (const entry of entries) {
-            if (results.length >= maxResults) return
-            if (entry.name.startsWith('.') || entry.name === 'node_modules') continue
+          const content = await fs.promises.readFile(file, 'utf-8')
+          if (!content.trim()) continue
 
-            const fullPath = path.join(dir, entry.name)
-            if (entry.isDirectory()) {
-              search(fullPath, depth + 1)
-            } else if (entry.isFile()) {
-              const ext = path.extname(entry.name).toLowerCase()
-              if (exts && !exts.includes(ext)) continue
-              if (entry.name.toLowerCase().includes(query.toLowerCase())) {
-                try {
-                  const stat = fs.statSync(fullPath)
-                  results.push({
-                    name: entry.name,
-                    path: fullPath,
-                    size: stat.size,
-                    modified: stat.mtime,
-                    type: ext || 'file'
-                  })
-                } catch {}
-              }
-            }
+          const vector = await embedText(content)
+
+          records.push({
+            vector,
+            file_path: file,
+            file_name: path.basename(file),
+            content_snippet: content.slice(0, 250)
+          })
+
+          if (i % 5 === 0) {
+            event.sender.send('semantic-progress', {
+              status: 'indexing',
+              text: `Indexed: ${path.basename(file)}`,
+              progress: 30 + Math.min(60, Math.floor((i / Math.max(files.length, 1)) * 60))
+            })
           }
-        } catch {}
+        } catch {
+          continue
+        }
       }
 
-      search(searchDir, 0)
-      return { success: true, results, total: results.length }
-    } catch (e) {
-      return { success: false, error: String(e), results: [] }
-    }
-  })
+      event.sender.send('semantic-progress', {
+        status: 'saving',
+        text: 'Writing vector database...',
+        progress: 95
+      })
 
-  try { ipcMain.removeHandler('read-file') } catch {}
-  ipcMain.handle('read-file', async (_e, { filePath }) => {
-    try {
-      if (!fs.existsSync(filePath)) return { success: false, error: 'File not found' }
-      const stat = fs.statSync(filePath)
-      if (stat.size > 5 * 1024 * 1024) return { success: false, error: 'File too large (max 5MB)' }
-
-      const ext = path.extname(filePath).toLowerCase()
-      if (['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'].includes(ext)) {
-        const base64 = fs.readFileSync(filePath).toString('base64')
-        return { success: true, type: 'image', content: `data:image/${ext.slice(1)};base64,${base64}` }
+      if (records.length > 0) {
+        try {
+          const table = await db.openTable('files')
+          await table.add(records)
+        } catch {
+          await db.createTable('files', records)
+        }
       }
 
-      const content = fs.readFileSync(filePath, 'utf-8')
-      return { success: true, type: 'text', content }
-    } catch (e) {
-      return { success: false, error: String(e) }
+      return `✅ Indexed ${records.length} text files from ${files.length} candidates.`
+    } catch (err) {
+      return `❌ Indexing Error: ${String(err)}`
     }
   })
 
-  ipcMain.removeHandler('write-file')
-  ipcMain.handle('write-file', async (_e, { filePath, content }) => {
+  ipcMain.removeHandler('search-files')
+  ipcMain.handle('search-files', async (_event, { query, limit = 8 } : { query: string; limit?: number }) => {
     try {
-      const dir = path.dirname(filePath)
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-      fs.writeFileSync(filePath, content, 'utf-8')
-      return { success: true }
-    } catch (e) {
-      return { success: false, error: String(e) }
-    }
-  })
+      if (!query || !query.trim()) return '❌ Empty search query.'
 
-  ipcMain.removeHandler('list-directory')
-  ipcMain.handle('list-directory', async (_e, { directory }) => {
-    try {
-      const dir = directory || os.homedir()
-      const entries = fs.readdirSync(dir, { withFileTypes: true })
-      const items = entries
-        .filter((e: fs.Dirent) => !e.name.startsWith('.'))
-        .map((e: fs.Dirent) => {
-          const fullPath = path.join(dir, e.name)
-          try {
-            const stat = fs.statSync(fullPath)
-            return {
-              name: e.name,
-              path: fullPath,
-              isDirectory: e.isDirectory(),
-              size: stat.size,
-              modified: stat.mtime
-            }
-          } catch {
-            return {
-              name: e.name,
-              path: fullPath,
-              isDirectory: e.isDirectory(),
-              size: 0,
-              modified: new Date()
-            }
-          }
-        })
-      return { success: true, items, currentDir: dir }
-    } catch (e) {
-      return { success: false, error: String(e), items: [] }
+      await loadDeps()
+
+      const dbPath = path.join(app.getPath('userData'), DB_FOLDER)
+      if (!fs.existsSync(dbPath)) {
+        return '❌ No semantic index found. First index a folder.'
+      }
+
+      const db = await lancedb.connect(dbPath)
+      const table = await db.openTable('files')
+      const queryVector = await embedText(query)
+
+      const results = await table.search(queryVector).limit(limit).execute()
+
+      if (!results || results.length === 0) {
+        return `No semantic matches found for: ${query}`
+      }
+
+      return (
+        `🧠 SEMANTIC MATCHES FOR: "${query}"\n\n` +
+        results
+          .map((r: any, idx: number) => {
+            const score = typeof r.score === 'number' ? ` | score: ${r.score.toFixed(4)}` : ''
+            return `${idx + 1}. ${r.file_path}${score}\n   ${r.content_snippet || ''}`
+          })
+          .join('\n\n')
+      )
+    } catch (err) {
+      return `❌ Search Error: ${String(err)}`
     }
   })
 }

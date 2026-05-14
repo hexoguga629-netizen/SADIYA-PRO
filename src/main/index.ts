@@ -54,6 +54,19 @@ import registerLockSystem from './security/lock-system'
 import registerNotion from './services/notion-handler'
 import registerCommandRouter from './logic/command-router'
 import registerAIProviders from './services/ai-providers'
+import registerAutonomyEngine from './logic/autonomy-engine'
+import registerContextEngine from './logic/context-engine'
+import registerIndexFolder from './logic/index-folder'
+import registerPersonalityStore from './logic/personality-store'
+import registerProjectProtocol from './logic/project-protocol'
+import registerTerminal from './logic/terminal-manager'
+import registerVoiceHandlerBridge from './logic/voice-handler-bridge'
+import { registerAudioBridge } from './logic/audio-bridge'
+import { registerAutomationMaster } from './automation/automation-master'
+import { registerBrowserAutomationIPC } from './browser/browser-automation-ipc'
+import { registerDockerSandboxIpc } from './logic/docker-sandbox'
+import { registerReasoningCore } from './logic/reasoning-core'
+import { registerVoiceBridgeIpc } from './logic/voice-bridge-ipc'
 import { autoUpdater } from 'electron-updater'
 
 // Auto-accept media permission dialogs (needed for desktop capture + mic)
@@ -373,6 +386,19 @@ app.whenReady().then(() => {
   registerIpcHandlers({ ipcMain, app })
   registerCommandRouter({ ipcMain, app, getMainWindow: () => mainWindow })
   registerAIProviders({ ipcMain })
+  registerAutonomyEngine({ ipcMain, app })
+  registerContextEngine({ ipcMain })
+  registerIndexFolder({ ipcMain })
+  registerPersonalityStore({ ipcMain })
+  registerProjectProtocol({ ipcMain })
+  registerTerminal({ ipcMain })
+  registerVoiceHandlerBridge({ ipcMain })
+  registerAudioBridge({ ipcMain })
+  registerAutomationMaster({ ipcMain })
+  registerBrowserAutomationIPC({ ipcMain })
+  registerDockerSandboxIpc({ ipcMain })
+  registerReasoningCore({ ipcMain })
+  registerVoiceBridgeIpc({ ipcMain })
 
   ipcMain.handle('get-screen-source', async () => {
     const sources = await desktopCapturer.getSources({ types: ['screen'] })

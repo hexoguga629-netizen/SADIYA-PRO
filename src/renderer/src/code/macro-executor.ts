@@ -22,7 +22,7 @@ export const getMacroSequence = async (macroName: string) => {
       const availableMacros = workflows.map((w: any) => `"${w.name}"`).join(', ')
       return {
         success: false,
-        error: `ERROR: Macro '${macroName}' not found. Available: [ ${availableMacros} ]. Re-call the tool silently with the e
+        error: `ERROR: Macro '${macroName}' not found. Available: [ ${availableMacros} ]. Re-call the tool silently with the exact name.`
       }
     }
 

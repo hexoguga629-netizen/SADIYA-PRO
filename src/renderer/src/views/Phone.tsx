@@ -21,8 +21,8 @@ import {
 } from 'react-icons/ri'
 
 const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
-  const [ip, setIp] = useState(() => localStorage.getItem('iris_adb_ip') || '')
-  const [port, setPort] = useState(() => localStorage.getItem('iris_adb_port') || '5555')
+  const [ip, setIp] = useState(() => localStorage.getItem('SADIYA_adb_ip') || '')
+  const [port, setPort] = useState(() => localStorage.getItem('SADIYA_adb_port') || '5555')
   const [status, setStatus] = useState<'idle' | 'connecting' | 'connected'>('idle')
   const [uiMode, setUiMode] = useState<'history' | 'manual'>('history')
   const [errorMsg, setErrorMsg] = useState('')
@@ -75,7 +75,7 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
         if (newNotifs.length > 0) {
           window.dispatchEvent(
             new CustomEvent('ai-force-speak', {
-              detail: `System Alert: The user just received a new mobile notification. Announce it out loud briefly: "${newNo
+              detail: `System Alert: The user just received a new mobile notification. Announce it out loud briefly: "${newNotifs[0]}"`
             })
           )
           knownNotifs.current = currentNotifs
@@ -110,8 +110,8 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
   }
 
   const handleManualConnect = () => {
-    localStorage.setItem('iris_adb_ip', ip)
-    localStorage.setItem('iris_adb_port', port)
+    localStorage.setItem('SADIYA_adb_ip', ip)
+    localStorage.setItem('SADIYA_adb_port', port)
     connectToDevice(ip, port)
   }
 
@@ -170,7 +170,7 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
 
   if (status !== 'connected' && uiMode === 'history') {
     return (
-      <div className="flex-1 flex flex-col items-center justify-start pt-16 p-10 animate-in fade-in duration-300 bg-[#050505]
+      <div className="flex-1 flex flex-col items-center justify-start pt-16 p-10 animate-in fade-in duration-300 bg-[#050505] min-h-screen text-emerald-50 relative overflow-y-auto scrollbar-small pb-24">
         <div className="w-full max-w-6xl flex flex-col items-center">
           <div className="flex flex-col items-center text-center mb-16">
             <div className="p-4 bg-emerald-500/10 rounded-2xl border border-emerald-500/30 mb-6 inline-block">
@@ -189,22 +189,22 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
               <button
                 key={i}
                 onClick={() => connectToDevice(dev.ip, dev.port)}
-                className="w-55 h-110 bg-black border-8 border-zinc-900 rounded-[3rem] relative flex flex-col p-2 group hover
+                className="w-55 h-110 bg-black border-8 border-zinc-900 rounded-[3rem] relative flex flex-col p-2 group hover:border-emerald-500/50 transition-all duration-500 shadow-2xl hover:shadow-[0_0_40px_rgba(16,185,129,0.2)]"
               >
-                <div className="absolute top-3 left-1/2 -translate-x-1/2 w-20 h-5 bg-zinc-900 rounded-full z-20 group-hover:b
-                <div className="flex-1 bg-linear-to-b from-zinc-900 to-black rounded-[2.2rem] overflow-hidden flex flex-col i
-                  <div className="absolute inset-0 bg-emerald-500/0 group-hover:bg-emerald-500/10 transition-colors duration-
+                <div className="absolute top-3 left-1/2 -translate-x-1/2 w-20 h-5 bg-zinc-900 rounded-full z-20 group-hover:bg-emerald-900/50 transition-colors"></div>
+                <div className="flex-1 bg-linear-to-b from-zinc-900 to-black rounded-[2.2rem] overflow-hidden flex flex-col items-center justify-center p-6 relative">
+                  <div className="absolute inset-0 bg-emerald-500/0 group-hover:bg-emerald-500/10 transition-colors duration-500"></div>
                   <RiSmartphoneLine
                     size={64}
-                    className="text-zinc-700 group-hover:text-emerald-400 mb-6 transition-colors duration-500 drop-shadow-[0_
+                    className="text-zinc-700 group-hover:text-emerald-400 mb-6 transition-colors duration-500 drop-shadow-[0_0_15px_rgba(16,185,129,0)] group-hover:drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]"
                   />
                   <h3 className="text-lg font-black text-white mb-2 tracking-widest text-center uppercase z-10">
                     {dev.model}
                   </h3>
-                  <div className="flex items-center gap-2 text-[10px] font-mono text-zinc-500 group-hover:text-emerald-300 z-
+                  <div className="flex items-center gap-2 text-[10px] font-mono text-zinc-500 group-hover:text-emerald-300 z-10">
                     <RiWifiLine /> {dev.ip}:{dev.port}
                   </div>
-                  <div className="mt-8 px-6 py-2 border border-zinc-700 group-hover:border-emerald-500 bg-transparent group-h
+                  <div className="mt-8 px-6 py-2 border border-zinc-700 group-hover:border-emerald-500 bg-transparent group-hover:bg-emerald-500 text-zinc-500 group-hover:text-black font-bold text-[10px] tracking-widest rounded-full transition-all z-10">
                     {status === 'connecting' && ip === dev.ip ? 'LINKING...' : 'UPLINK'}
                   </div>
                 </div>
@@ -213,9 +213,9 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
 
             <button
               onClick={() => setUiMode('manual')}
-              className="w-55 h-110 bg-transparent border-4 border-dashed border-zinc-800 hover:border-emerald-500/50 rounded
+              className="w-55 h-110 bg-transparent border-4 border-dashed border-zinc-800 hover:border-emerald-500/50 rounded-[3rem] flex flex-col items-center justify-center group transition-all duration-500 hover:bg-emerald-500/5"
             >
-              <div className="w-16 h-16 rounded-full bg-zinc-900 group-hover:bg-emerald-500 flex items-center justify-center 
+              <div className="w-16 h-16 rounded-full bg-zinc-900 group-hover:bg-emerald-500 flex items-center justify-center text-zinc-500 group-hover:text-black transition-all mb-4">
                 <RiAddLine size={32} />
               </div>
               <span className="text-xs font-bold text-zinc-500 group-hover:text-emerald-400 tracking-widest uppercase">
@@ -230,7 +230,7 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
 
   if (status !== 'connected' && uiMode === 'manual') {
     return (
-      <div className="flex-1 flex flex-col lg:flex-row items-start justify-center gap-8 p-6 md:p-12 animate-in fade-in durati
+      <div className="flex-1 flex flex-col lg:flex-row items-start justify-center gap-8 p-6 md:p-12 animate-in fade-in duration-300 bg-[#050505] min-h-dvh overflow-y-auto text-emerald-50 pb-24">
         <div className="w-full lg:w-1/3 max-w-md flex flex-col gap-6 shrink-0">
           <div className="p-6 bg-black border border-emerald-900/40 rounded-2xl shadow-lg flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -246,7 +246,7 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
             {deviceHistory.length > 0 && (
               <button
                 onClick={() => setUiMode('history')}
-                className="text-[10px] font-bold tracking-widest text-emerald-500 hover:text-emerald-300 hover:bg-emerald-500
+                className="text-[10px] font-bold tracking-widest text-emerald-500 hover:text-emerald-300 hover:bg-emerald-500/10 uppercase px-3 py-1.5 border border-emerald-500/30 rounded-lg transition-all shrink-0 ml-2"
               >
                 ARCHIVE
               </button>
@@ -254,10 +254,10 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
           </div>
 
           <div
-            className={`${glassPanel || 'bg-zinc-950'} p-8 border border-emerald-900/40 rounded-2xl shadow-lg flex flex-col g
+            className={`${glassPanel || 'bg-zinc-950'} p-8 border border-emerald-900/40 rounded-2xl shadow-lg flex flex-col gap-6`}
           >
             {errorMsg && (
-              <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-400 text-xs rounded-lg font-mono leading-re
+              <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-400 text-xs rounded-lg font-mono leading-relaxed">
                 {errorMsg}
               </div>
             )}
@@ -266,14 +266,14 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
               <label className="text-xs font-bold text-emerald-400/80 tracking-wide mb-3 block">
                 Target IP Address
               </label>
-              <div className="flex items-center bg-black border border-emerald-900/50 rounded-xl px-5 py-4 focus-within:borde
+              <div className="flex items-center bg-black border border-emerald-900/50 rounded-xl px-5 py-4 focus-within:border-emerald-400 transition-all">
                 <RiWifiLine className="text-emerald-400 mr-3" size={20} />
                 <input
                   type="text"
                   value={ip}
                   onChange={(e) => setIp(e.target.value)}
                   placeholder="192.168.1.xxx"
-                  className="bg-transparent border-none outline-none text-base text-emerald-400 w-full font-mono placeholder:
+                  className="bg-transparent border-none outline-none text-base text-emerald-400 w-full font-mono placeholder:text-emerald-900/50"
                 />
               </div>
             </div>
@@ -282,14 +282,14 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
               <label className="text-xs font-bold text-emerald-400/80 tracking-wide mb-3 block">
                 Target Port
               </label>
-              <div className="flex items-center bg-black border border-emerald-900/50 rounded-xl px-5 py-4 focus-within:borde
+              <div className="flex items-center bg-black border border-emerald-900/50 rounded-xl px-5 py-4 focus-within:border-emerald-400 transition-all">
                 <RiLinkM className="text-emerald-400 mr-3" size={20} />
                 <input
                   type="text"
                   value={port}
                   onChange={(e) => setPort(e.target.value)}
                   placeholder="5555"
-                  className="bg-transparent border-none outline-none text-base text-emerald-400 w-full font-mono placeholder:
+                  className="bg-transparent border-none outline-none text-base text-emerald-400 w-full font-mono placeholder:text-emerald-900/50"
                 />
               </div>
             </div>
@@ -297,7 +297,7 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
             <button
               onClick={handleManualConnect}
               disabled={status === 'connecting'}
-              className="w-full mt-4 py-5 bg-emerald-950 border border-emerald-400/50 hover:bg-emerald-400 text-emerald-400 h
+              className="w-full mt-4 py-5 bg-emerald-950 border border-emerald-400/50 hover:bg-emerald-400 text-emerald-400 hover:text-black font-bold rounded-xl tracking-widest transition-all duration-300 uppercase text-sm"
             >
               {status === 'connecting' ? 'INITIALIZING LINK...' : 'ESTABLISH CONNECTION'}
             </button>
@@ -305,7 +305,7 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
         </div>
 
         <div className="w-full lg:w-1/2 max-w-2xl flex flex-col">
-          <div className="bg-black border border-emerald-900/40 rounded-2xl shadow-lg p-8 md:p-10 flex flex-col relative over
+          <div className="bg-black border border-emerald-900/40 rounded-2xl shadow-lg p-8 md:p-10 flex flex-col relative overflow-hidden">
             <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
               <RiTerminalLine size={240} />
             </div>
@@ -325,7 +325,7 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
             <div className="space-y-8 relative z-10">
               <div className="flex gap-5">
                 <div className="flex flex-col items-center">
-                  <div className="w-8 h-8 rounded-full bg-emerald-950 border border-emerald-500/50 flex items-center justify-
+                  <div className="w-8 h-8 rounded-full bg-emerald-950 border border-emerald-500/50 flex items-center justify-center text-xs font-bold text-emerald-400 shrink-0">
                     1
                   </div>
                   <div className="w-px h-full bg-emerald-900/30 my-2"></div>
@@ -345,7 +345,7 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
 
               <div className="flex gap-5">
                 <div className="flex flex-col items-center">
-                  <div className="w-8 h-8 rounded-full bg-emerald-950 border border-emerald-500/50 flex items-center justify-
+                  <div className="w-8 h-8 rounded-full bg-emerald-950 border border-emerald-500/50 flex items-center justify-center text-xs font-bold text-emerald-400 shrink-0">
                     2
                   </div>
                   <div className="w-px h-full bg-emerald-900/30 my-2"></div>
@@ -363,7 +363,7 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
 
               <div className="flex gap-5">
                 <div className="flex flex-col items-center">
-                  <div className="w-8 h-8 rounded-full bg-emerald-950 border border-emerald-500/50 flex items-center justify-
+                  <div className="w-8 h-8 rounded-full bg-emerald-950 border border-emerald-500/50 flex items-center justify-center text-xs font-bold text-emerald-400 shrink-0">
                     3
                   </div>
                   <div className="w-px h-full bg-emerald-900/30 my-2"></div>
@@ -378,12 +378,12 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
                   </p>
 
                   <div className="relative group w-full">
-                    <code className="block w-full bg-zinc-950 border border-emerald-900/30 text-emerald-400 text-sm p-4 pr-14
+                    <code className="block w-full bg-zinc-950 border border-emerald-900/30 text-emerald-400 text-sm p-4 pr-14 rounded-xl tracking-widest font-mono">
                       adb tcpip 5555
                     </code>
                     <button
                       onClick={handleCopyCommand}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-emerald-600 hover:text-emerald-400 hover:
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-emerald-600 hover:text-emerald-400 hover:bg-emerald-900/30 rounded-lg transition-all"
                       title="Copy command"
                     >
                       {copied ? (
@@ -398,7 +398,7 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
 
               <div className="flex gap-5">
                 <div className="flex flex-col items-center">
-                  <div className="w-8 h-8 rounded-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)] flex items-cente
+                  <div className="w-8 h-8 rounded-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)] flex items-center justify-center text-xs font-bold text-black shrink-0">
                     4
                   </div>
                 </div>
@@ -420,7 +420,7 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
   }
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-10 p-10 animate-in fade-in duration-500 
+    <div className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-10 p-10 animate-in fade-in duration-500 bg-[#0a0a0a] min-h-screen overflow-y-auto">
       <div className="w-1/4 flex flex-col">
         <div className="flex items-center gap-4 mb-6">
           <div className="p-3 bg-purple-500/10 rounded-xl border border-purple-500/30">
@@ -441,7 +441,7 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
           <span className="text-orange-500">TEMP: {telemetry.battery.temp}°C</span>
         </div>
 
-        <h3 className="text-fuchsia-500 font-bold tracking-widest text-sm text-center my-6 drop-shadow-[0_0_10px_rgba(217,70,
+        <h3 className="text-fuchsia-500 font-bold tracking-widest text-sm text-center my-6 drop-shadow-[0_0_10px_rgba(217,70,239,0.5)]">
           DEVICE TELEMETRY
         </h3>
 
@@ -494,8 +494,8 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
       </div>
 
       <div className="w-1/3 flex justify-center relative">
-        <div className="w-full max-w-[320px] h-162.5 bg-black rounded-[3rem] border-12 border-[#1a1a1a] shadow-[0_0_50px_rgba
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-full z-20 flex items-center just
+        <div className="w-full max-w-[320px] h-162.5 bg-black rounded-[3rem] border-12 border-[#1a1a1a] shadow-[0_0_50px_rgba(168,85,247,0.1)] relative overflow-hidden flex flex-col">
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-28 h-7 bg-black rounded-full z-20 flex items-center justify-end px-3 gap-2 shadow-md">
             <div className="w-2 h-2 rounded-full bg-purple-500/50"></div>
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
           </div>
@@ -523,7 +523,7 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
           <div className="grid grid-cols-2 gap-4 mb-auto">
             <button
               onClick={() => executeQuickCommand('camera')}
-              className="group flex flex-col items-center justify-center gap-3 p-6 bg-black/50 border border-white/5 hover:bo
+              className="group flex flex-col items-center justify-center gap-3 p-6 bg-black/50 border border-white/5 hover:border-purple-500/50 hover:bg-purple-500/10 rounded-2xl transition-all"
             >
               <RiCameraLensLine
                 size={28}
@@ -533,7 +533,7 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
             </button>
             <button
               onClick={() => executeQuickCommand('lock')}
-              className="group flex flex-col items-center justify-center gap-3 p-6 bg-black/50 border border-white/5 hover:bo
+              className="group flex flex-col items-center justify-center gap-3 p-6 bg-black/50 border border-white/5 hover:border-purple-500/50 hover:bg-purple-500/10 rounded-2xl transition-all"
             >
               <RiLockPasswordLine
                 size={28}
@@ -543,7 +543,7 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
             </button>
             <button
               onClick={() => executeQuickCommand('wake')}
-              className="group flex flex-col items-center justify-center gap-3 p-6 bg-black/50 border border-white/5 hover:bo
+              className="group flex flex-col items-center justify-center gap-3 p-6 bg-black/50 border border-white/5 hover:border-purple-500/50 hover:bg-purple-500/10 rounded-2xl transition-all"
             >
               <RiSunLine
                 size={28}
@@ -553,7 +553,7 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
             </button>
             <button
               onClick={() => executeQuickCommand('home')}
-              className="group flex flex-col items-center justify-center gap-3 p-6 bg-black/50 border border-white/5 hover:bo
+              className="group flex flex-col items-center justify-center gap-3 p-6 bg-black/50 border border-white/5 hover:border-purple-500/50 hover:bg-purple-500/10 rounded-2xl transition-all"
             >
               <RiHome5Line
                 size={28}
@@ -565,14 +565,14 @@ const PhoneView = ({ glassPanel }: { glassPanel?: string }) => {
 
           <div className="mb-6 p-4 bg-purple-500/5 border border-purple-500/20 rounded-xl">
             <p className="text-[10px] text-purple-400 font-mono leading-relaxed text-center">
-              IRIS is listening via the primary neural audio interface. Voice commands for app
+              SADIYA is listening via the primary neural audio interface. Voice commands for app
               execution are online.
             </p>
           </div>
 
           <button
             onClick={handleDisconnect}
-            className="w-full py-4 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white font-bold rounded-xl tracking
+            className="w-full py-4 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white font-bold rounded-xl tracking-widest transition-all duration-300 border border-red-500/30 flex items-center justify-center gap-3"
           >
             <RiShutDownLine size={20} /> SEVER CONNECTION
           </button>

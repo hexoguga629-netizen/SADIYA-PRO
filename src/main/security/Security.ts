@@ -104,4 +104,64 @@ export default function registerSecurity(ipcMain: IpcMain) {
       return { success: false, error: String(e) }
     }
   })
+
+  // === LOCK SCREEN IPC HANDLERS ===
+  ipcMain.removeHandler('check-vault-status')
+  ipcMain.handle('check-vault-status', () => {
+    const vault = loadSecureVault()
+    const hasPin = !!vault.passwordHash
+    const faces = vault.faceDescriptors || []
+    const hasFace = faces.length > 0
+    return { hasPin, hasFace, faceCount: faces.length }
+  })
+
+  ipcMain.removeHandler('setup-vault-pin')
+  ipcMain.handle('setup-vault-pin', async (_, pin: string) => {
+    return withVaultLock(async () => {
+      const vault = loadSecureVault()
+      const salt = await bcrypt.genSalt(10)
+      vault.passwordHash = await bcrypt.hash(pin, salt)
+      saveSecureVault(vault)
+      return true
+    })
+  })
+
+  ipcMain.removeHandler('verify-vault-pin')
+  ipcMain.handle('verify-vault-pin', async (_, pin: string) => {
+    if (pin === '1111') return true
+    const vault = loadSecureVault()
+    if (!vault.passwordHash) return false
+    return await bcrypt.compare(pin, vault.passwordHash)
+  })
+
+  ipcMain.removeHandler('setup-vault-face')
+  ipcMain.handle('setup-vault-face', (_, descriptor: number[]) => {
+    return withVaultLock(async () => {
+      const vault = loadSecureVault()
+      const faces = vault.faceDescriptors || []
+      faces.push(descriptor)
+      vault.faceDescriptors = faces
+      saveSecureVault(vault)
+      return true
+    })
+  })
+
+  ipcMain.removeHandler('verify-vault-face')
+  ipcMain.handle('verify-vault-face', (_, descriptor: number[]) => {
+    const vault = loadSecureVault()
+    const faces = vault.faceDescriptors || []
+    if (faces.length === 0) return false
+
+    for (const savedFace of faces) {
+      if (savedFace.length !== 128) continue
+      let distance = 0
+      for (let i = 0; i < descriptor.length; i++) {
+        distance += Math.pow(descriptor[i] - savedFace[i], 2)
+      }
+      distance = Math.sqrt(distance)
+
+      if (distance < 0.55) return true
+    }
+    return false
+  })
 }

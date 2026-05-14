@@ -41,3 +41,4 @@ export default function registerPermanentMemory({ ipcMain, app }: { ipcMain: Ipc
     }
   })
 }
+

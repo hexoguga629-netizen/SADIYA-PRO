@@ -190,7 +190,7 @@ const nodeTypes = { customTool: ToolNode }
 function Editor() {
   const [nodes, setNodes] = useState<any[]>([])
   const [edges, setEdges] = useState<any[]>([])
-  const [workflowName, setWorkflowName] = useState('New IRIS Macro')
+  const [workflowName, setWorkflowName] = useState('New SADIYA Macro')
   const [description, setDescription] = useState('Custom Macro')
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
   const [isSaved, setIsSaved] = useState(false)
@@ -217,7 +217,7 @@ function Editor() {
   }
 
   const resetCanvas = () => {
-    setWorkflowName('New IRIS Macro')
+    setWorkflowName('New SADIYA Macro')
     setDescription('Custom Macro')
     setNodes([])
     setEdges([])
@@ -319,7 +319,7 @@ function Editor() {
     const macroRes = await getMacroSequence(workflowName)
 
     if (!macroRes.success) {
-      alert(`  Execution Failed: ${macroRes.error}`)
+      alert(`❌ Execution Failed: ${macroRes.error}`)
       return
     }
 
@@ -395,7 +395,7 @@ function Editor() {
         } else {
         }
       } catch (stepError) {
-        alert(`  Macro Execution Halted! Failed at node: ${step.tool}`)
+        alert(`🔴 Macro Execution Halted! Failed at node: ${step.tool}`)
         break
       }
     }
@@ -405,11 +405,11 @@ function Editor() {
   return (
     <div className="flex h-full w-full bg-[#09090b] relative overflow-hidden">
       <div
-        className={`fixed top-14 left-0 h-[calc(100vh-56px)] bg-[#111113] border-r border-[#27272a] p-4 flex flex-col gap-1 t
+        className={`fixed top-14 left-0 h-[calc(100vh-56px)] bg-[#111113] border-r border-[#27272a] p-4 flex flex-col gap-1 transition-all duration-300 ease-in-out z-40 scrollbar-small overflow-auto mt-5 ${isSidebarOpen ? 'w-72 opacity-100' : 'w-0 opacity-0'}`}
       >
         {isSidebarOpen && (
           <>
-            <h2 className="text-[10px] font-black tracking-[0.2em] text-emerald-500 mb-6 flex items-center gap-2 border-b bor
+            <h2 className="text-[10px] font-black tracking-[0.2em] text-emerald-500 mb-6 flex items-center gap-2 border-b border-[#27272a] pb-2 uppercase">
               MODULE LIBRARY
             </h2>
 
@@ -422,7 +422,7 @@ function Editor() {
                   {tools.map((tool: any) => (
                     <div
                       key={tool.name}
-                      className="flex items-center gap-3 p-2 bg-[#18181b] border border-[#27272a] rounded-lg cursor-grab hove
+                      className="flex items-center gap-3 p-2 bg-[#18181b] border border-[#27272a] rounded-lg cursor-grab hover:border-emerald-500/50 hover:bg-[#27272a]/50 transition-all group"
                       draggable
                       onDragStart={(e) =>
                         e.dataTransfer.setData('application/reactflow', tool.name)
@@ -432,7 +432,7 @@ function Editor() {
                         {getIcon(tool.name, 14)}
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[10px] font-bold tracking-widest text-zinc-300 uppercase group-hover:text-white
+                        <span className="text-[10px] font-bold tracking-widest text-zinc-300 uppercase group-hover:text-white transition-colors">
                           {tool.name.replace(/_/g, ' ')}
                         </span>
                       </div>
@@ -447,7 +447,7 @@ function Editor() {
 
       <button
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="absolute top-1/2 left-0 transform -translate-y-1/2 bg-[#111113] border border-[#27272a] border-l-0 p-2 rou
+        className="absolute top-1/2 left-0 transform -translate-y-1/2 bg-[#111113] border border-[#27272a] border-l-0 p-2 rounded-r-lg text-zinc-600 hover:text-emerald-500 z-50 transition-colors"
       >
         {isSidebarOpen ? <RiLayoutColumnLine size={18} /> : <RiLayoutColumnFill size={18} />}
       </button>
@@ -460,7 +460,7 @@ function Editor() {
         <div className="absolute top-4 left-4 z-10 flex items-center gap-3 shadow-2xl">
           <button
             onClick={resetCanvas}
-            className="p-3 rounded-lg bg-[#18181b] border border-[#27272a] text-zinc-600 hover:text-emerald-500 hover:border-
+            className="p-3 rounded-lg bg-[#18181b] border border-[#27272a] text-zinc-600 hover:text-emerald-500 hover:border-emerald-500/50 transition-colors cursor-pointer"
             data-tooltip-id="global-tooltip"
             data-tooltip-content="Start New Macro"
           >
@@ -473,19 +473,19 @@ function Editor() {
             type="text"
             value={workflowName}
             onChange={(e) => setWorkflowName(e.target.value)}
-            className="bg-[#18181b] border border-[#27272a] px-4 py-2 rounded-lg text-sm text-white outline-none focus:border
+            className="bg-[#18181b] border border-[#27272a] px-4 py-2 rounded-lg text-sm text-white outline-none focus:border-emerald-500 font-bold tracking-wide w-64 shadow-inner"
           />
 
           <button
             onClick={runMacroManually}
-            className="bg-[#18181b] hover:bg-[#27272a] text-emerald-400 px-5 py-2 rounded-lg text-[11px] font-black tracking-
+            className="bg-[#18181b] hover:bg-[#27272a] text-emerald-400 px-5 py-2 rounded-lg text-[11px] font-black tracking-widest transition-all border border-[#27272a] hover:border-emerald-500/50 flex items-center gap-2 cursor-pointer shadow-lg"
           >
             <RiPlayFill size={16} /> RUN
           </button>
 
           <button
             onClick={saveWorkflow}
-            className="bg-emerald-600 hover:bg-emerald-500 text-black px-6 py-2 rounded-lg text-[11px] font-black tracking-wi
+            className="bg-emerald-600 hover:bg-emerald-500 text-black px-6 py-2 rounded-lg text-[11px] font-black tracking-widest transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] flex items-center gap-2 cursor-pointer"
           >
             <RiSave3Line size={16} /> SAVE
           </button>

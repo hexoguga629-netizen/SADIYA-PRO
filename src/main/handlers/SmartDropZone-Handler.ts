@@ -27,7 +27,7 @@ export default function registerSmartDropZone() {
         content = result.value.slice(0, 20000)
         type = 'document'
       } else if (ext === '.pdf') {
-        const pdfParse = (await import('pdf-parse')).default
+        const pdfParse = ((await import('pdf-parse')) as any).default || (await import('pdf-parse'))
         const buffer = fs.readFileSync(filePath)
         const data = await pdfParse(buffer)
         content = data.text.slice(0, 20000)

@@ -1,79 +1,141 @@
-import { IpcMain } from 'electron'
+import { IpcMain, shell } from 'electron'
 import puppeteer from 'puppeteer-extra'
 import StealthPlugin from 'puppeteer-extra-plugin-stealth'
-import * as cheerio from 'cheerio'
+import { load } from 'cheerio'
 
 puppeteer.use(StealthPlugin())
 
+const USER_BOOKMARKS: Record<string, string> = {
+  instagram: 'https://instagram.com',
+  reddit: 'https://reddit.com',
+  chatgpt: 'https://chat.openai.com',
+  claude: 'https://claude.ai',
+  linkedin: 'https://linkedin.com'
+}
+
+const getSmartUrl = (
+  query: string
+): { url: string; source: string; skipScrape: boolean } | null => {
+  const lower = query.toLowerCase()
+
+  for (const [key, url] of Object.entries(USER_BOOKMARKS)) {
+    if (lower.includes(key)) {
+      return { url, source: 'Bookmark', skipScrape: false }
+    }
+  }
+
+  if (lower.includes('amazon') || lower.includes('buy') || lower.includes('shop for')) {
+    const term = lower.replace(/(amazon|buy|price of|shop for)/g, '').trim()
+    return {
+      url: `https://www.amazon.in/s?k=${encodeURIComponent(term)}`,
+      source: 'Amazon',
+      skipScrape: true
+    }
+  }
+
+  if (lower.includes('github') || lower.includes('repo')) {
+    const match = lower.match(/github(?: profile)?(?: of)?\s+(\w+)/)
+    const term = match ? match[1] : lower.replace('github', '').trim()
+    return {
+      url: `https://github.com/${term}`,
+      source: 'GitHub',
+      skipScrape: false
+    }
+  }
+
+  if (lower.includes('youtube') || lower.includes('watch')) {
+    const term = lower.replace(/(youtube|watch)/g, '').trim()
+    return {
+      url: `https://www.youtube.com/results?search_query=${encodeURIComponent(term)}`,
+      source: 'YouTube',
+      skipScrape: true
+    }
+  }
+
+  if (lower.startsWith('open ') || lower.startsWith('go to ')) {
+    const term = lower.replace(/^(open|go to)( the)?\s+/, '').trim()
+
+    if (!term.includes('who') && !term.includes('what') && !term.includes('how')) {
+      return {
+        url: `https://duckduckgo.com/?q=!ducky+${encodeURIComponent(term)}`,
+        source: 'Smart Redirect',
+        skipScrape: false
+      }
+    }
+  }
+
+  return null
+}
+
 export default function registerWebAgent(ipcMain: IpcMain) {
-  ipcMain.removeHandler('web-browse')
-  ipcMain.handle('web-browse', async (_e, { url }) => {
+  ipcMain.handle('google-search', async (_event, query: string) => {
+    let browser: any = null
+
     try {
-      const browser = await puppeteer.launch({
+      const smartRoute = getSmartUrl(query)
+      const finalUrl = smartRoute
+        ? smartRoute.url
+        : `https://www.google.com/search?q=${encodeURIComponent(query)}`
+
+      shell.openExternal(finalUrl)
+
+      if (smartRoute && smartRoute.skipScrape) {
+        return `I've opened ${smartRoute.source} for you.`
+      }
+
+      browser = await puppeteer.launch({
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
       })
+
       const page = await browser.newPage()
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 })
+      await page.setUserAgent(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      )
+
+      const scrapeUrl = smartRoute
+        ? finalUrl
+        : `https://duckduckgo.com/?q=${encodeURIComponent(query)}&ia=web`
+
+      await page.goto(scrapeUrl, { waitUntil: 'networkidle2', timeout: 15000 })
+
       const html = await page.content()
-      const title = await page.title()
+      const $ = load(html)
+      let summary = ''
+
+      if (smartRoute?.source === 'GitHub') {
+        const name = $('.p-name').text().trim()
+        const bio = $('.p-note').text().trim()
+        summary = `GitHub Profile: ${name}\nBio: ${bio}`
+      } else {
+        const paragraphs = $('p')
+          .map((_, el) => $(el).text().trim())
+          .get()
+          .filter((t) => t.length > 50)
+          .slice(0, 3)
+
+        summary = paragraphs.join('\n\n')
+
+        if (!summary) {
+          const snippets = $('.result__snippet')
+            .map((_, el) => $(el).text().trim())
+            .get()
+            .slice(0, 3)
+          summary = snippets.join('\n\n')
+        }
+      }
+
       await browser.close()
 
-      const $ = cheerio.load(html)
-      $('script, style, noscript').remove()
-      const text = $('body').text().replace(/\s+/g, ' ').trim().slice(0, 5000)
+      if (!summary || summary.length < 20) {
+        return "I've opened the website for you."
+      }
 
-      return { success: true, title, text, url }
-    } catch (e) {
-      return { success: false, error: String(e) }
-    }
-  })
-
-  ipcMain.removeHandler('web-search')
-  ipcMain.handle('web-search', async (_e, { query }) => {
-    try {
-      const browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-      })
-      const page = await browser.newPage()
-      await page.goto(`https://www.google.com/search?q=${encodeURIComponent(query)}`, {
-        waitUntil: 'domcontentloaded',
-        timeout: 15000
-      })
-      const html = await page.content()
-      await browser.close()
-
-      const $ = cheerio.load(html)
-      const results: { title: string; link: string; snippet: string }[] = []
-      $('div.g').each((_, el) => {
-        const title = $(el).find('h3').text()
-        const link = $(el).find('a').attr('href') || ''
-        const snippet = $(el).find('.VwiC3b').text()
-        if (title && link) results.push({ title, link, snippet })
-      })
-
-      return { success: true, results: results.slice(0, 10) }
-    } catch (e) {
-      return { success: false, error: String(e), results: [] }
-    }
-  })
-
-  ipcMain.removeHandler('web-screenshot')
-  ipcMain.handle('web-screenshot', async (_e, { url }) => {
-    try {
-      const browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
-      })
-      const page = await browser.newPage()
-      await page.setViewport({ width: 1280, height: 720 })
-      await page.goto(url, { waitUntil: 'networkidle2', timeout: 20000 })
-      const screenshot = await page.screenshot({ encoding: 'base64' })
-      await browser.close()
-      return { success: true, screenshot }
-    } catch (e) {
-      return { success: false, error: String(e) }
+      return `I've opened the link. Here is a quick summary:\n${summary.substring(0, 500)}...`
+    } catch (error: any) {
+      if (browser) await browser.close()
+      return "I opened the browser, but couldn't read the content."
     }
   })
 }
+
