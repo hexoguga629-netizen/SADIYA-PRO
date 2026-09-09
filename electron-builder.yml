@@ -1,5 +1,5 @@
-appId: com.sadiya.ai
-productName: SADIYA AI
+appId: com.phantomnexus.max
+productName: PHANTOM NEXUS
 directories:
   buildResources: build
 files:
@@ -13,7 +13,7 @@ asarUnpack:
   - resources/**
 
 win:
-  executableName: sadiya-ai
+  executableName: phantom-nexus
   icon: build/icon.ico
   target:
     - target: nsis
@@ -46,7 +46,7 @@ linux:
     - AppImage
     - snap
     - deb
-  maintainer: SADIYA Team
+  maintainer: PHANTOM NEXUS
   category: Utility
 appImage:
   artifactName: ${name}-${version}.${ext}
@@ -55,4 +55,4 @@ npmRebuild: false
 publish:
   provider: github
   owner: hexoguga629-netizen
-  repo: SADIYA-AI
+  repo: phantom-nexus

@@ -1,10 +1,10 @@
 {
-  "name": "sadiya-ai",
+  "name": "phantom-nexus",
   "version": "1.0.0",
-  "description": "SADIYA - Your AI OS Companion. Ready to assist, automate and execute. A futuristic AI Operating Layer for desktop.",
+  "description": "PHANTOM NEXUS — MAX visual AI operating system interface.",
   "main": "./out/main/index.js",
-  "author": "SADIYA Team",
-  "homepage": "https://sadiya.ai",
+  "author": "PHANTOM NEXUS",
+  "homepage": "https://phantom-nexus.local",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",
